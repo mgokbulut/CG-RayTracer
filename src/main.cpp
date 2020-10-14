@@ -36,6 +36,56 @@ enum class ViewMode {
 };
 
 
+static glm::vec3 specularOneLight(Ray& ray, const PointLight& light, const glm::vec3& fromPosToLight, HitInfo& hitInfo) {
+    glm::vec3 fromCamToPos = ray.direction;
+    glm::vec3 reflected = glm::normalize(glm::reflect(fromCamToPos, hitInfo.normal));
+
+    // draw the normal
+    //drawRay(Ray{ ray.origin + ray.direction * ray.t, hitInfo.normal, glm::length(fromCamToPos) }, glm::vec3{ 0.0f, 0.0f, 1.0f });
+
+    float specularCos = glm::dot(reflected, fromPosToLight);
+    if (specularCos <= 0) {
+        // the reflection is not counted because the angle is too high
+        //drawRay(Ray{ ray.origin + ray.direction * ray.t, reflected, glm::length(fromCamToPos) }, glm::vec3{ 1.0f, 0.0f, 0.0f });
+        return glm::vec3(0);
+    }
+
+    // Is * Ks * cos(theta)
+    glm::vec3 result = light.color * hitInfo.material.ks * pow(specularCos, hitInfo.material.shininess);
+    // draw the reflection with the specular colour
+    //drawRay(Ray{ ray.origin + ray.direction * ray.t, reflected, glm::length(fromCamToPos) }, result);
+    return result;
+}
+
+static glm::vec3 diffuseOneLight(const PointLight& light, const glm::vec3& fromPosToLight, HitInfo& hitInfo) {
+    float diffuseCos = glm::dot(fromPosToLight, hitInfo.normal);
+
+    if (diffuseCos <= 0) { // this point is facing away from the light
+        return glm::vec3(0);
+    }
+
+    // Id * Kd * cos(theta)
+    return light.color * hitInfo.material.kd * diffuseCos;
+}
+
+static glm::vec3 shading(Ray& ray, HitInfo& hitInfo, const Scene& scene)
+{
+    const std::vector<PointLight>& pointLights = scene.pointLights;
+    glm::vec3 pointOn = ray.origin + ray.direction * ray.t;
+    glm::vec3 result(0.0f);
+    
+    for (const PointLight& light : pointLights) {
+        const glm::vec3 fromPosToLight = glm::normalize(light.position - pointOn);
+        glm::vec3 diffuse = diffuseOneLight(light, fromPosToLight, hitInfo);
+        glm::vec3 specular = specularOneLight(ray, light, fromPosToLight, hitInfo);
+        result += diffuse;
+        result += specular;
+    }
+
+    return result;
+}
+
+
 // NOTE(Mathijs): separate function to make recursion easier (could also be done with lambda + std::function).
 static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy& bvh, Ray ray)
 {
@@ -43,8 +93,12 @@ static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy
     if (bvh.intersect(ray, hitInfo)) {
         // Draw a white debug ray.
         drawRay(ray, glm::vec3(1.0f));
+
+        // Get the resulting shading
+        glm::vec3 shadingResult = shading(ray, hitInfo, scene);
+
         // Set the color of the pixel to white if the ray hits.
-        return glm::vec3(1.0f);
+        return shadingResult;
     } else {
         // Draw a red debug ray if the ray missed.
         drawRay(ray, glm::vec3(1.0f, 0.0f, 0.0f));
