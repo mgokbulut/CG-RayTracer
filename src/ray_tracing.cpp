@@ -74,7 +74,13 @@ bool intersectRayWithTriangle(const glm::vec3& v0, const glm::vec3& v1, const gl
     float prevT = ray.t;
     if (intersectRayWithPlane(plane, ray)) {
         if (pointInTriangle(v0, v1, v2, plane.normal, ray.origin + ray.direction * ray.t)) {
-            hitInfo.normal = plane.normal; // update the hitinfo for further calculations
+            // update the hitinfo for further calculations
+            if (glm::dot(plane.normal, -ray.direction) > 0) {
+                hitInfo.normal = plane.normal;
+            }
+            else {
+                hitInfo.normal = -plane.normal;
+            }
             return true;
         }
         // rollback the value of t in case there was a plane intersection but no triangle intersection
