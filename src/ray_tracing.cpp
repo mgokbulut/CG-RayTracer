@@ -10,7 +10,7 @@ DISABLE_WARNINGS_POP()
 #include <iostream>
 #include <limits>
 
-bool pointInTriangle(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, const glm::vec3& n, const glm::vec3& p)
+bool pointInTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, const glm::vec3 &n, const glm::vec3 &p)
 {
     glm::vec3 v0v1 = v1 - v0;
     glm::vec3 v1v2 = v2 - v1;
@@ -20,35 +20,40 @@ bool pointInTriangle(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& 
     glm::vec3 v1p = p - v1;
     glm::vec3 v2p = p - v2;
 
-    if (glm::dot(n, glm::cross(v0v1, v0p)) >= 0 && glm::dot(n, glm::cross(v1v2, v1p)) >= 0 && glm::dot(n, glm::cross(v2v0, v2p)) >= 0) {
+    if (glm::dot(n, glm::cross(v0v1, v0p)) >= 0 && glm::dot(n, glm::cross(v1v2, v1p)) >= 0 && glm::dot(n, glm::cross(v2v0, v2p)) >= 0)
+    {
         return true;
     }
     return false;
 }
 
-bool intersectRayWithPlane(const Plane& plane, Ray& ray)
+bool intersectRayWithPlane(const Plane &plane, Ray &ray)
 {
     // there is an intersection if the ray origin lies inside the plane
-    if (glm::dot(ray.origin, plane.normal) == plane.D) {
+    if (glm::dot(ray.origin, plane.normal) == plane.D)
+    {
         ray.t = 0;
         return true;
     }
 
     // the ray and the plane are parallel and the ray's origin isn't inside the plane
     float denominator = glm::dot(ray.direction, plane.normal);
-    if (denominator == 0) {
+    if (denominator == 0)
+    {
         return false;
     }
 
     // the ray and the plane will have an intersection other than the origin
     float numerator = plane.D - glm::dot(ray.origin, plane.normal);
     float t = numerator / denominator;
-    if (t < 0) { // the point is behind the camera
+    if (t < 0)
+    { // the point is behind the camera
         return false;
     }
 
     // the new point is further than the point that is currently closest
-    if (t >= ray.t) {
+    if (t >= ray.t)
+    {
         return false;
     }
 
@@ -56,7 +61,7 @@ bool intersectRayWithPlane(const Plane& plane, Ray& ray)
     return true;
 }
 
-Plane trianglePlane(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2)
+Plane trianglePlane(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2)
 {
     Plane plane;
     glm::vec3 u = v1 - v0;
@@ -68,17 +73,21 @@ Plane trianglePlane(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v
 
 /// Input: the three vertices of the triangle
 /// Output: if intersects then modify the hit parameter ray.t and return true, otherwise return false
-bool intersectRayWithTriangle(const glm::vec3& v0, const glm::vec3& v1, const glm::vec3& v2, Ray& ray, HitInfo& hitInfo)
+bool intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, Ray &ray, HitInfo &hitInfo)
 {
     Plane plane = trianglePlane(v0, v1, v2);
     float prevT = ray.t;
-    if (intersectRayWithPlane(plane, ray)) {
-        if (pointInTriangle(v0, v1, v2, plane.normal, ray.origin + ray.direction * ray.t)) {
+    if (intersectRayWithPlane(plane, ray))
+    {
+        if (pointInTriangle(v0, v1, v2, plane.normal, ray.origin + ray.direction * ray.t))
+        {
             // update the hitinfo for further calculations
-            if (glm::dot(plane.normal, -ray.direction) > 0) {
+            if (glm::dot(plane.normal, -ray.direction) > 0)
+            {
                 hitInfo.normal = plane.normal;
             }
-            else {
+            else
+            {
                 hitInfo.normal = -plane.normal;
             }
             return true;
@@ -88,21 +97,21 @@ bool intersectRayWithTriangle(const glm::vec3& v0, const glm::vec3& v1, const gl
     }
 
     return false;
-
 }
 
 /// Input: a sphere with the following attributes: sphere.radius, sphere.center
 /// Output: if intersects then modify the hit parameter ray.t and return true, otherwise return false
-bool intersectRayWithShape(const Sphere& sphere, Ray& ray, HitInfo& hitInfo)
+bool intersectRayWithShape(const Sphere &sphere, Ray &ray, HitInfo &hitInfo)
 {
-    Ray centeredRay = { ray.origin - sphere.center, ray.direction, ray.t };
+    Ray centeredRay = {ray.origin - sphere.center, ray.direction, ray.t};
 
     float a = glm::dot(centeredRay.direction, centeredRay.direction);
     float b = 2 * glm::dot(centeredRay.direction, centeredRay.origin);
     float c = glm::dot(centeredRay.origin, centeredRay.origin) - sphere.radius * sphere.radius;
 
     float D = b * b - 4 * a * c;
-    if (D < 0) {
+    if (D < 0)
+    {
         return false;
     }
 
@@ -110,17 +119,21 @@ bool intersectRayWithShape(const Sphere& sphere, Ray& ray, HitInfo& hitInfo)
     float biggerT = (-b + sqrt(D)) / (2 * a);
 
     float currentT;
-    if (smallerT >= 0) { // we are in front of the sphere
+    if (smallerT >= 0)
+    { // we are in front of the sphere
         currentT = smallerT;
     }
-    else if (biggerT >= 0) { // we are inside the sphere
+    else if (biggerT >= 0)
+    { // we are inside the sphere
         currentT = biggerT;
     }
-    else { // the sphere is behind us
+    else
+    { // the sphere is behind us
         return false;
     }
 
-    if (currentT >= ray.t) { // some object we intersected earlier is closer
+    if (currentT >= ray.t)
+    { // some object we intersected earlier is closer
         return false;
     }
 
@@ -132,7 +145,7 @@ bool intersectRayWithShape(const Sphere& sphere, Ray& ray, HitInfo& hitInfo)
 
 /// Input: an axis-aligned bounding box with the following parameters: minimum coordinates box.lower and maximum coordinates box.upper
 /// Output: if intersects then modify the hit parameter ray.t and return true, otherwise return false
-bool intersectRayWithShape(const AxisAlignedBox& box, Ray& ray)
+bool intersectRayWithShape(const AxisAlignedBox &box, Ray &ray)
 {
     glm::vec3 tMin = (box.lower - ray.origin) / ray.direction;
     glm::vec3 tMax = (box.upper - ray.origin) / ray.direction;
@@ -150,20 +163,37 @@ bool intersectRayWithShape(const AxisAlignedBox& box, Ray& ray)
     float tOut = tOutX < tOutY ? (tOutX < tOutZ ? tOutX : tOutZ) : (tOutY < tOutZ ? tOutY : tOutZ);
 
     float currentT;
-    if (tIn > tOut || tOut < 0) { // we miss the box or it is behind us
+    if (tIn > tOut || tOut < 0)
+    { // we miss the box or it is behind us
         return false;
     }
-    else if (tIn < 0) { // we are inside the box
+    else if (tIn < 0)
+    { // we are inside the box
         currentT = tOut;
     }
-    else { // the box is in front of us
+    else
+    { // the box is in front of us
         currentT = tIn;
     }
 
-    if (currentT >= ray.t) {
+    if (currentT >= ray.t)
+    {
         return false;
     }
 
     ray.t = currentT;
     return true;
+}
+
+bool intersectRayWithShape(const Mesh &mesh, Ray &ray, HitInfo &hitInfo)
+{
+    bool hit = false;
+    for (const auto &tri : mesh.triangles)
+    {
+        const auto v0 = mesh.vertices[tri[0]];
+        const auto v1 = mesh.vertices[tri[1]];
+        const auto v2 = mesh.vertices[tri[2]];
+        hit |= intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo);
+    }
+    return hit;
 }

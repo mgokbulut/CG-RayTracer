@@ -26,17 +26,18 @@ DISABLE_WARNINGS_POP()
 #endif
 
 // This is the main application. The code in here does not need to be modified.
-constexpr glm::ivec2 windowResolution { 800, 800 };
-const std::filesystem::path dataPath { DATA_DIR };
-const std::filesystem::path outputPath { OUTPUT_DIR };
+constexpr glm::ivec2 windowResolution{800, 800};
+const std::filesystem::path dataPath{DATA_DIR};
+const std::filesystem::path outputPath{OUTPUT_DIR};
 
-enum class ViewMode {
+enum class ViewMode
+{
     Rasterization = 0,
     RayTracing = 1
 };
 
-
-static glm::vec3 specularOneLight(Ray& ray, const PointLight& light, const glm::vec3& fromPosToLight, HitInfo& hitInfo) {
+static glm::vec3 specularOneLight(Ray &ray, const PointLight &light, const glm::vec3 &fromPosToLight, HitInfo &hitInfo)
+{
     glm::vec3 fromCamToPos = ray.direction;
     glm::vec3 reflected = glm::normalize(glm::reflect(fromCamToPos, hitInfo.normal));
 
@@ -44,7 +45,8 @@ static glm::vec3 specularOneLight(Ray& ray, const PointLight& light, const glm::
     //drawRay(Ray{ ray.origin + ray.direction * ray.t, hitInfo.normal, glm::length(fromCamToPos) }, glm::vec3{ 0.0f, 0.0f, 1.0f });
 
     float specularCos = glm::dot(reflected, fromPosToLight);
-    if (specularCos <= 0) {
+    if (specularCos <= 0)
+    {
         // the reflection is not counted because the angle is too high
         //drawRay(Ray{ ray.origin + ray.direction * ray.t, reflected, glm::length(fromCamToPos) }, glm::vec3{ 1.0f, 0.0f, 0.0f });
         return glm::vec3(0);
@@ -57,10 +59,12 @@ static glm::vec3 specularOneLight(Ray& ray, const PointLight& light, const glm::
     return result;
 }
 
-static glm::vec3 diffuseOneLight(const PointLight& light, const glm::vec3& fromPosToLight, HitInfo& hitInfo) {
+static glm::vec3 diffuseOneLight(const PointLight &light, const glm::vec3 &fromPosToLight, HitInfo &hitInfo)
+{
     float diffuseCos = glm::dot(fromPosToLight, hitInfo.normal);
 
-    if (diffuseCos <= 0) { // this point is facing away from the light
+    if (diffuseCos <= 0)
+    { // this point is facing away from the light
         return glm::vec3(0);
     }
 
@@ -68,13 +72,14 @@ static glm::vec3 diffuseOneLight(const PointLight& light, const glm::vec3& fromP
     return light.color * hitInfo.material.kd * diffuseCos;
 }
 
-static glm::vec3 shading(Ray& ray, HitInfo& hitInfo, const Scene& scene)
+static glm::vec3 shading(Ray &ray, HitInfo &hitInfo, const Scene &scene)
 {
-    const std::vector<PointLight>& pointLights = scene.pointLights;
+    const std::vector<PointLight> &pointLights = scene.pointLights;
     glm::vec3 pointOn = ray.origin + ray.direction * ray.t;
     glm::vec3 result(0.0f);
-    
-    for (const PointLight& light : pointLights) {
+
+    for (const PointLight &light : pointLights)
+    {
         const glm::vec3 fromPosToLight = glm::normalize(light.position - pointOn);
         glm::vec3 diffuse = diffuseOneLight(light, fromPosToLight, hitInfo);
         glm::vec3 specular = specularOneLight(ray, light, fromPosToLight, hitInfo);
@@ -85,109 +90,189 @@ static glm::vec3 shading(Ray& ray, HitInfo& hitInfo, const Scene& scene)
     return result;
 }
 
+// Recursive Ray tracing methods
+static void trace(int level, Ray ray, glm::vec3 &color, const Scene &scene, const BoundingVolumeHierarchy &bvh);
+static void shade(int level, Ray ray, glm::vec3 &color, const Scene &scene, const BoundingVolumeHierarchy &bvh, HitInfo &hitInfo);
 
-// NOTE(Mathijs): separate function to make recursion easier (could also be done with lambda + std::function).
-static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy& bvh, Ray ray)
+static void shade(int level, Ray ray, glm::vec3 &color, const Scene &scene, const BoundingVolumeHierarchy &bvh, HitInfo &hitInfo)
 {
+    //ComputeDirectLight
+    glm::vec3 directColor = shading(ray, hitInfo, scene);
+
+    //ComputeReflectedRay
+    glm::vec3 fromCamToPos = ray.direction;
+    glm::vec3 reflected = glm::normalize(glm::reflect(fromCamToPos, hitInfo.normal));
+    Ray reflectedRay = {ray.origin + ray.direction * ray.t, reflected, glm::length(fromCamToPos)};
+    //drawRay(reflectedRay, glm::vec3{1.0f, 0.0f, 0.0f});
+
+    glm::vec3 reflectedColor;
+    trace(level + 1, reflectedRay, reflectedColor, scene, bvh);
+    // std::cout << hitInfo.material.ks.x << std::endl;
+
+    color = directColor + reflectedColor * hitInfo.material.ks;
+}
+static void trace(int level, Ray ray, glm::vec3 &color, const Scene &scene, const BoundingVolumeHierarchy &bvh)
+{
+    if (level >= 2)
+    {
+        //std::cout << "end" << std::endl;
+        color = glm::vec3(0.0f);
+        return;
+    }
+    //std::cout << level << std::endl;
+
     HitInfo hitInfo;
-    if (bvh.intersect(ray, hitInfo)) {
+    if (bvh.intersect(ray, hitInfo))
+    {
         // Draw a white debug ray.
         drawRay(ray, glm::vec3(1.0f));
 
-        // Get the resulting shading
-        glm::vec3 shadingResult = shading(ray, hitInfo, scene);
+        //std::cout << ray.origin.x << " " << ray.origin.y << " " << ray.origin.z << " " << ray.direction.x << " " << ray.direction.y << " " << ray.direction.z << std::endl;
 
-        // Set the color of the pixel to white if the ray hits.
-        return shadingResult;
-    } else {
+        // Get the resulting shading
+        //glm::vec3 shadingResult = shading(ray, hitInfo, scene);
+
+        shade(level, ray, color, scene, bvh, hitInfo);
+    }
+    else
+    {
         // Draw a red debug ray if the ray missed.
         drawRay(ray, glm::vec3(1.0f, 0.0f, 0.0f));
         // Set the color of the pixel to black if the ray misses.
-        return glm::vec3(0.0f);
+        color = glm::vec3(0.0f);
     }
 }
 
-static void setOpenGLMatrices(const Trackball& camera);
-static void renderOpenGL(const Scene& scene, const Trackball& camera, int selectedLight);
+// NOTE(Mathijs): separate function to make recursion easier (could also be done with lambda + std::function).
+static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy &bvh, Ray ray)
+{
+    //std::cout << "called" << std::endl;
+    glm::vec3 color;
+
+    //Bug Example
+    //ray.origin = {0.0268146, 0.313131, 0.523811};
+    //ray.direction = {0.2711, 0.416066, -0.867983};
+
+    trace(0, ray, color, scene, bvh);
+
+    return color;
+}
+// static glm::vec3 getFinalColor(const Scene &scene, const BoundingVolumeHierarchy &bvh, Ray ray)
+// {
+//     HitInfo hitInfo;
+//     if (bvh.intersect(ray, hitInfo))
+//     {
+//         // Draw a white debug ray.
+//         drawRay(ray, glm::vec3(1.0f));
+
+//         // Get the resulting shading
+//         glm::vec3 shadingResult = shading(ray, hitInfo, scene);
+
+//         // Set the color of the pixel to white if the ray hits.
+//         return shadingResult;
+//     }
+//     else
+//     {
+//         // Draw a red debug ray if the ray missed.
+//         drawRay(ray, glm::vec3(1.0f, 0.0f, 0.0f));
+//         // Set the color of the pixel to black if the ray misses.
+//         return glm::vec3(0.0f);
+//     }
+// }
+
+static void setOpenGLMatrices(const Trackball &camera);
+static void renderOpenGL(const Scene &scene, const Trackball &camera, int selectedLight);
 
 // This is the main rendering function. You are free to change this function in any way (including the function signature).
-static void renderRayTracing(const Scene& scene, const Trackball& camera, const BoundingVolumeHierarchy& bvh, Screen& screen)
+static void renderRayTracing(const Scene &scene, const Trackball &camera, const BoundingVolumeHierarchy &bvh, Screen &screen)
 {
 #ifdef USE_OPENMP
 #pragma omp parallel for
 #endif
-    for (int y = 0; y < windowResolution.y; y++) {
-        for (int x = 0; x != windowResolution.x; x++) {
+    for (int y = 0; y < windowResolution.y; y++)
+    {
+        for (int x = 0; x != windowResolution.x; x++)
+        {
             // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
-            const glm::vec2 normalizedPixelPos {
+            const glm::vec2 normalizedPixelPos{
                 float(x) / windowResolution.x * 2.0f - 1.0f,
-                float(y) / windowResolution.y * 2.0f - 1.0f
-            };
+                float(y) / windowResolution.y * 2.0f - 1.0f};
             const Ray cameraRay = camera.generateRay(normalizedPixelPos);
-            screen.setPixel(x, y, getFinalColor(scene, bvh, cameraRay));
+            glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+            screen.setPixel(x, y, color);
         }
     }
 }
 
-int main(int argc, char** argv)
+int main(int argc, char **argv)
 {
     Trackball::printHelp();
     std::cout << "\n Press the [R] key on your keyboard to create a ray towards the mouse cursor" << std::endl
               << std::endl;
 
-    Window window { "Final Project - Part 2", windowResolution, OpenGLVersion::GL2 };
-    Screen screen { windowResolution };
-    Trackball camera { &window, glm::radians(50.0f), 3.0f };
+    Window window{"Final Project - Part 2", windowResolution, OpenGLVersion::GL2};
+    Screen screen{windowResolution};
+    Trackball camera{&window, glm::radians(50.0f), 3.0f};
     camera.setCamera(glm::vec3(0.0f, 0.0f, 0.0f), glm::radians(glm::vec3(20.0f, 20.0f, 0.0f)), 3.0f);
 
-    SceneType sceneType { SceneType::SingleTriangle };
+    SceneType sceneType{SceneType::SingleTriangle};
     std::optional<Ray> optDebugRay;
     Scene scene = loadScene(sceneType, dataPath);
-    BoundingVolumeHierarchy bvh { &scene };
+    BoundingVolumeHierarchy bvh{&scene};
 
     int bvhDebugLevel = 0;
-    bool debugBVH { false };
-    ViewMode viewMode { ViewMode::Rasterization };
+    bool debugBVH{false};
+    ViewMode viewMode{ViewMode::Rasterization};
 
     window.registerKeyCallback([&](int key, int /* scancode */, int action, int /* mods */) {
-        if (action == GLFW_PRESS) {
-            switch (key) {
-            case GLFW_KEY_R: {
+        if (action == GLFW_PRESS)
+        {
+            switch (key)
+            {
+            case GLFW_KEY_R:
+            {
                 // Shoot a ray. Produce a ray from camera to the far plane.
                 const auto tmp = window.getNormalizedCursorPos();
                 optDebugRay = camera.generateRay(tmp * 2.0f - 1.0f);
                 viewMode = ViewMode::Rasterization;
-            } break;
-            case GLFW_KEY_ESCAPE: {
+            }
+            break;
+            case GLFW_KEY_ESCAPE:
+            {
                 window.close();
-            } break;
+            }
+            break;
             };
         }
     });
 
-    int selectedLight { 0 };
-    while (!window.shouldClose()) {
+    int selectedLight{0};
+    while (!window.shouldClose())
+    {
         window.updateInput();
 
         // === Setup the UI ===
         ImGui::Begin("Final Project - Part 2");
         {
-            constexpr std::array items { "SingleTriangle", "Cube", "Cornell Box (with mirror)", "Cornell Box (spherical light and mirror)", "Monkey", "Dragon", /* "AABBs",*/ "Spheres", /*"Mixed",*/ "Custom" };
-            if (ImGui::Combo("Scenes", reinterpret_cast<int*>(&sceneType), items.data(), int(items.size()))) {
+            constexpr std::array items{"SingleTriangle", "Cube", "Cornell Box (with mirror)", "Cornell Box (spherical light and mirror)", "Monkey", "Dragon", /* "AABBs",*/ "Spheres", /*"Mixed",*/ "Custom"};
+            if (ImGui::Combo("Scenes", reinterpret_cast<int *>(&sceneType), items.data(), int(items.size())))
+            {
                 optDebugRay.reset();
                 scene = loadScene(sceneType, dataPath);
                 bvh = BoundingVolumeHierarchy(&scene);
-                if (optDebugRay) {
-                    HitInfo dummy {};
+                if (optDebugRay)
+                {
+                    HitInfo dummy{};
                     bvh.intersect(*optDebugRay, dummy);
                 }
             }
         }
         {
-            constexpr std::array items { "Rasterization", "Ray Traced" };
-            ImGui::Combo("View mode", reinterpret_cast<int*>(&viewMode), items.data(), int(items.size()));
+            constexpr std::array items{"Rasterization", "Ray Traced"};
+            ImGui::Combo("View mode", reinterpret_cast<int *>(&viewMode), items.data(), int(items.size()));
         }
-        if (ImGui::Button("Render to file")) {
+        if (ImGui::Button("Render to file"))
+        {
             {
                 using clock = std::chrono::high_resolution_clock;
                 const auto start = clock::now();
@@ -200,7 +285,8 @@ int main(int argc, char** argv)
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Text("Debugging");
-        if (viewMode == ViewMode::Rasterization) {
+        if (viewMode == ViewMode::Rasterization)
+        {
             ImGui::Checkbox("Draw BVH", &debugBVH);
             if (debugBVH)
                 ImGui::SliderInt("BVH Level", &bvhDebugLevel, 0, bvh.numLevels() - 1);
@@ -209,53 +295,66 @@ int main(int argc, char** argv)
         ImGui::Spacing();
         ImGui::Separator();
         ImGui::Text("Lights");
-        if (!scene.pointLights.empty() || !scene.sphericalLight.empty()) {
+        if (!scene.pointLights.empty() || !scene.sphericalLight.empty())
+        {
             {
                 std::vector<std::string> options;
-                for (size_t i = 0; i < scene.pointLights.size(); i++) {
+                for (size_t i = 0; i < scene.pointLights.size(); i++)
+                {
                     options.push_back("Point Light " + std::to_string(i + 1));
                 }
-                for (size_t i = 0; i < scene.sphericalLight.size(); i++) {
+                for (size_t i = 0; i < scene.sphericalLight.size(); i++)
+                {
                     options.push_back("Spherical Light " + std::to_string(i + 1));
                 }
 
-                std::vector<const char*> optionsPointers;
+                std::vector<const char *> optionsPointers;
                 std::transform(std::begin(options), std::end(options), std::back_inserter(optionsPointers),
-                    [](const auto& str) { return str.c_str(); });
+                               [](const auto &str) { return str.c_str(); });
 
                 ImGui::Combo("Selected light", &selectedLight, optionsPointers.data(), static_cast<int>(optionsPointers.size()));
             }
 
             {
-                const auto showLightOptions = [](auto& light) {
+                const auto showLightOptions = [](auto &light) {
                     ImGui::DragFloat3("Light position", glm::value_ptr(light.position), 0.01f, -3.0f, 3.0f);
                     ImGui::ColorEdit3("Light color", glm::value_ptr(light.color));
-                    if constexpr (std::is_same_v<std::decay_t<decltype(light)>, SphericalLight>) {
+                    if constexpr (std::is_same_v<std::decay_t<decltype(light)>, SphericalLight>)
+                    {
                         ImGui::DragFloat("Light radius", &light.radius, 0.01f, 0.01f, 0.5f);
                     }
                 };
-                if (selectedLight < static_cast<int>(scene.pointLights.size())) {
+                if (selectedLight < static_cast<int>(scene.pointLights.size()))
+                {
                     // Draw a big yellow sphere and then the small light sphere on top.
                     showLightOptions(scene.pointLights[selectedLight]);
-                } else {
+                }
+                else
+                {
                     // Draw a big yellow sphere and then the smaller light sphere on top.
                     showLightOptions(scene.sphericalLight[selectedLight - scene.pointLights.size()]);
                 }
             }
         }
 
-        if (ImGui::Button("Add point light")) {
-            scene.pointLights.push_back(PointLight { glm::vec3(0.0f), glm::vec3(1.0f) });
+        if (ImGui::Button("Add point light"))
+        {
+            scene.pointLights.push_back(PointLight{glm::vec3(0.0f), glm::vec3(1.0f)});
             selectedLight = int(scene.pointLights.size() - 1);
         }
-        if (ImGui::Button("Add spherical light")) {
-            scene.sphericalLight.push_back(SphericalLight { glm::vec3(0.0f), 0.1f, glm::vec3(1.0f) });
+        if (ImGui::Button("Add spherical light"))
+        {
+            scene.sphericalLight.push_back(SphericalLight{glm::vec3(0.0f), 0.1f, glm::vec3(1.0f)});
             selectedLight = int(scene.pointLights.size() + scene.sphericalLight.size() - 1);
         }
-        if (ImGui::Button("Remove selected light")) {
-            if (selectedLight < static_cast<int>(scene.pointLights.size())) {
+        if (ImGui::Button("Remove selected light"))
+        {
+            if (selectedLight < static_cast<int>(scene.pointLights.size()))
+            {
                 scene.pointLights.erase(std::begin(scene.pointLights) + selectedLight);
-            } else {
+            }
+            else
+            {
                 scene.sphericalLight.erase(std::begin(scene.sphericalLight) + (selectedLight - scene.pointLights.size()));
             }
             selectedLight = 0;
@@ -267,11 +366,14 @@ int main(int argc, char** argv)
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // Draw either using OpenGL (rasterization) or the ray tracing function.
-        switch (viewMode) {
-        case ViewMode::Rasterization: {
+        switch (viewMode)
+        {
+        case ViewMode::Rasterization:
+        {
             glPushAttrib(GL_ALL_ATTRIB_BITS);
             renderOpenGL(scene, camera, selectedLight);
-            if (optDebugRay) {
+            if (optDebugRay)
+            {
                 // Call getFinalColor for the debug ray. Ignore the result but tell the function that it should
                 // draw the rays instead.
                 enableDrawRay = true;
@@ -279,18 +381,22 @@ int main(int argc, char** argv)
                 enableDrawRay = false;
             }
             glPopAttrib();
-        } break;
-        case ViewMode::RayTracing: {
+        }
+        break;
+        case ViewMode::RayTracing:
+        {
             screen.clear(glm::vec3(0.0f));
             renderRayTracing(scene, camera, bvh, screen);
             screen.setPixel(0, 0, glm::vec3(1.0f));
             screen.draw(); // Takes the image generated using ray tracing and outputs it to the screen using OpenGL.
-        } break;
+        }
+        break;
         default:
             break;
         };
 
-        if (debugBVH) {
+        if (debugBVH)
+        {
             glPushAttrib(GL_ALL_ATTRIB_BITS);
             setOpenGLMatrices(camera);
             glDisable(GL_LIGHTING);
@@ -311,7 +417,7 @@ int main(int argc, char** argv)
     return 0; // execution never reaches this point
 }
 
-static void setOpenGLMatrices(const Trackball& camera)
+static void setOpenGLMatrices(const Trackball &camera)
 {
     // Load view matrix.
     glMatrixMode(GL_MODELVIEW);
@@ -326,7 +432,7 @@ static void setOpenGLMatrices(const Trackball& camera)
     glMultMatrixf(glm::value_ptr(projectionMatrix));
 }
 
-static void renderOpenGL(const Scene& scene, const Trackball& camera, int selectedLight)
+static void renderOpenGL(const Scene &scene, const Trackball &camera, int selectedLight)
 {
     // Normals will be normalized in the graphics pipeline.
     glEnable(GL_NORMALIZE);
@@ -341,22 +447,26 @@ static void renderOpenGL(const Scene& scene, const Trackball& camera, int select
 
     glDisable(GL_LIGHTING);
     // Render point lights as very small dots
-    for (const auto& light : scene.pointLights)
+    for (const auto &light : scene.pointLights)
         drawSphere(light.position, 0.01f, light.color);
-    for (const auto& light : scene.sphericalLight)
+    for (const auto &light : scene.sphericalLight)
         drawSphere(light.position, light.radius, light.color);
 
-    if (!scene.pointLights.empty() || !scene.sphericalLight.empty()) {
-        if (selectedLight < static_cast<int>(scene.pointLights.size())) {
+    if (!scene.pointLights.empty() || !scene.sphericalLight.empty())
+    {
+        if (selectedLight < static_cast<int>(scene.pointLights.size()))
+        {
             // Draw a big yellow sphere and then the small light sphere on top.
-            const auto& light = scene.pointLights[selectedLight];
+            const auto &light = scene.pointLights[selectedLight];
             drawSphere(light.position, 0.05f, glm::vec3(1, 1, 0));
             glDisable(GL_DEPTH_TEST);
             drawSphere(light.position, 0.01f, light.color);
             glEnable(GL_DEPTH_TEST);
-        } else {
+        }
+        else
+        {
             // Draw a big yellow sphere and then the smaller light sphere on top.
-            const auto& light = scene.sphericalLight[selectedLight - scene.pointLights.size()];
+            const auto &light = scene.sphericalLight[selectedLight - scene.pointLights.size()];
             drawSphere(light.position, light.radius + 0.01f, glm::vec3(1, 1, 0));
             glDisable(GL_DEPTH_TEST);
             drawSphere(light.position, light.radius, light.color);
@@ -368,12 +478,12 @@ static void renderOpenGL(const Scene& scene, const Trackball& camera, int select
     glEnable(GL_LIGHTING);
 
     int i = 0;
-    const auto enableLight = [&](const auto& light) {
+    const auto enableLight = [&](const auto &light) {
         glEnable(GL_LIGHT0 + i);
-        const glm::vec4 position4 { light.position, 1 };
+        const glm::vec4 position4{light.position, 1};
         glLightfv(GL_LIGHT0 + i, GL_POSITION, glm::value_ptr(position4));
-        const glm::vec4 color4 { glm::clamp(light.color, 0.0f, 1.0f), 1.0f };
-        const glm::vec4 zero4 { 0.0f, 0.0f, 0.0f, 1.0f };
+        const glm::vec4 color4{glm::clamp(light.color, 0.0f, 1.0f), 1.0f};
+        const glm::vec4 zero4{0.0f, 0.0f, 0.0f, 1.0f};
         glLightfv(GL_LIGHT0 + i, GL_AMBIENT, glm::value_ptr(zero4));
         glLightfv(GL_LIGHT0 + i, GL_DIFFUSE, glm::value_ptr(color4));
         glLightfv(GL_LIGHT0 + i, GL_SPECULAR, glm::value_ptr(zero4));
@@ -384,9 +494,9 @@ static void renderOpenGL(const Scene& scene, const Trackball& camera, int select
         glLightf(GL_LIGHT0 + i, GL_QUADRATIC_ATTENUATION, 0.0f);
         i++;
     };
-    for (const auto& light : scene.pointLights)
+    for (const auto &light : scene.pointLights)
         enableLight(light);
-    for (const auto& light : scene.sphericalLight)
+    for (const auto &light : scene.sphericalLight)
         enableLight(light);
 
     // Draw the scene and the ray (if any).
