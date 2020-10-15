@@ -35,6 +35,15 @@ enum class ViewMode {
     RayTracing = 1
 };
 
+/**
+@author Alex
+*/
+static glm::vec3 randomUnitVector() {
+    float y = rand() - RAND_MAX / 2;
+    float x = rand() - RAND_MAX / 2;
+    float s = rand() - RAND_MAX / 2;
+    return glm::normalize(glm::vec3(y,x,s));
+}
 
 static glm::vec3 specularOneLight(Ray& ray, const PointLight& light, const glm::vec3& fromPosToLight, HitInfo& hitInfo) {
     glm::vec3 fromCamToPos = ray.direction;
@@ -67,19 +76,51 @@ static glm::vec3 diffuseOneLight(const PointLight& light, const glm::vec3& fromP
     // Id * Kd * cos(theta)
     return light.color * hitInfo.material.kd * diffuseCos;
 }
+/**
+* @author Alex, added bvh to the function signature
+* first for loop
 
-static glm::vec3 shading(Ray& ray, HitInfo& hitInfo, const Scene& scene)
+*/
+static glm::vec3 shading(Ray& ray, HitInfo& hitInfo, const Scene& scene, const BoundingVolumeHierarchy& bvh)
 {
     const std::vector<PointLight>& pointLights = scene.pointLights;
+    const std::vector<SphericalLight>& sphericalLights = scene.sphericalLight;
     glm::vec3 pointOn = ray.origin + ray.direction * ray.t;
     glm::vec3 result(0.0f);
-    
+    float softShadowCounter = 0.0f;
+
+    for (const SphericalLight& spherical : sphericalLights) {
+        softShadowCounter = 0.0f;
+        for (int i = 1; i <= 30; i++) {
+            glm::vec3 randomPointOnSphere = spherical.position + spherical.radius * randomUnitVector();
+            Ray newRay = { pointOn+(float)(1e-5)*(glm::normalize(randomPointOnSphere - pointOn)), glm::normalize(randomPointOnSphere - pointOn), length(randomPointOnSphere - pointOn) };
+            
+            if (!(bvh.intersect(newRay, hitInfo))) {
+                softShadowCounter += 1.0f;
+                drawRay(newRay, glm::vec3(1));
+            }
+            else
+            {
+                drawRay(newRay, glm::vec3(1,0,0));
+            }
+        }
+        softShadowCounter = softShadowCounter / 30;
+
+        const PointLight& light = { spherical.position, spherical.color };
+        
+        const glm::vec3 fromPosToLight = glm::normalize(light.position - pointOn);
+        glm::vec3 diffuse = diffuseOneLight(light, fromPosToLight, hitInfo);
+        glm::vec3 specular = specularOneLight(ray, light, fromPosToLight, hitInfo);
+        result += diffuse * softShadowCounter;
+        result += specular * softShadowCounter;
+        
+    }
     for (const PointLight& light : pointLights) {
         const glm::vec3 fromPosToLight = glm::normalize(light.position - pointOn);
         glm::vec3 diffuse = diffuseOneLight(light, fromPosToLight, hitInfo);
         glm::vec3 specular = specularOneLight(ray, light, fromPosToLight, hitInfo);
-        result += diffuse;
-        result += specular;
+        result += diffuse ;
+        result += specular ;
     }
 
     return result;
@@ -95,7 +136,7 @@ static glm::vec3 getFinalColor(const Scene& scene, const BoundingVolumeHierarchy
         drawRay(ray, glm::vec3(1.0f));
 
         // Get the resulting shading
-        glm::vec3 shadingResult = shading(ray, hitInfo, scene);
+        glm::vec3 shadingResult = shading(ray, hitInfo, scene, bvh);
 
         // Set the color of the pixel to white if the ray hits.
         return shadingResult;
