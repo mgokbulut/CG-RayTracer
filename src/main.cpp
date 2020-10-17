@@ -39,14 +39,16 @@ enum class ViewMode
 /**
 @author Alex
 */
-static glm::vec3 randomUnitVector() {
+static glm::vec3 randomUnitVector()
+{
     float y = rand() - RAND_MAX / 2;
     float x = rand() - RAND_MAX / 2;
     float s = rand() - RAND_MAX / 2;
-    return glm::normalize(glm::vec3(y,x,s));
+    return glm::normalize(glm::vec3(y, x, s));
 }
 
-static glm::vec3 specularOneLight(Ray& ray, const PointLight& light, const glm::vec3& fromPosToLight, HitInfo& hitInfo) {
+static glm::vec3 specularOneLight(Ray &ray, const PointLight &light, const glm::vec3 &fromPosToLight, HitInfo &hitInfo)
+{
     glm::vec3 fromCamToPos = ray.direction;
     glm::vec3 reflected = glm::normalize(glm::reflect(fromCamToPos, hitInfo.normal));
 
@@ -85,46 +87,49 @@ static glm::vec3 diffuseOneLight(const PointLight &light, const glm::vec3 &fromP
 * first for loop
 
 */
-static glm::vec3 shading(Ray& ray, HitInfo& hitInfo, const Scene& scene, const BoundingVolumeHierarchy& bvh)
+static glm::vec3 shading(Ray &ray, HitInfo &hitInfo, const Scene &scene, const BoundingVolumeHierarchy &bvh)
 {
-    const std::vector<PointLight>& pointLights = scene.pointLights;
-    const std::vector<SphericalLight>& sphericalLights = scene.sphericalLight;
+    const std::vector<PointLight> &pointLights = scene.pointLights;
+    const std::vector<SphericalLight> &sphericalLights = scene.sphericalLight;
     glm::vec3 pointOn = ray.origin + ray.direction * ray.t;
     glm::vec3 result(0.0f);
     float softShadowCounter = 0.0f;
 
-    for (const SphericalLight& spherical : sphericalLights) {
+    for (const SphericalLight &spherical : sphericalLights)
+    {
         softShadowCounter = 0.0f;
-        for (int i = 1; i <= 30; i++) {
+        for (int i = 1; i <= 30; i++)
+        {
             glm::vec3 randomPointOnSphere = spherical.position + spherical.radius * randomUnitVector();
-            Ray newRay = { pointOn+(float)(1e-5)*(glm::normalize(randomPointOnSphere - pointOn)), glm::normalize(randomPointOnSphere - pointOn), length(randomPointOnSphere - pointOn) };
-            
-            if (!(bvh.intersect(newRay, hitInfo))) {
+            Ray newRay = {pointOn + (float)(1e-5) * (glm::normalize(randomPointOnSphere - pointOn)), glm::normalize(randomPointOnSphere - pointOn), length(randomPointOnSphere - pointOn)};
+
+            if (!(bvh.intersect(newRay, hitInfo)))
+            {
                 softShadowCounter += 1.0f;
                 drawRay(newRay, glm::vec3(1));
             }
             else
             {
-                drawRay(newRay, glm::vec3(1,0,0));
+                drawRay(newRay, glm::vec3(1, 0, 0));
             }
         }
         softShadowCounter = softShadowCounter / 30;
 
-        const PointLight& light = { spherical.position, spherical.color };
-        
+        const PointLight &light = {spherical.position, spherical.color};
+
         const glm::vec3 fromPosToLight = glm::normalize(light.position - pointOn);
         glm::vec3 diffuse = diffuseOneLight(light, fromPosToLight, hitInfo);
         glm::vec3 specular = specularOneLight(ray, light, fromPosToLight, hitInfo);
         result += diffuse * softShadowCounter;
         result += specular * softShadowCounter;
-        
     }
-    for (const PointLight& light : pointLights) {
+    for (const PointLight &light : pointLights)
+    {
         const glm::vec3 fromPosToLight = glm::normalize(light.position - pointOn);
         glm::vec3 diffuse = diffuseOneLight(light, fromPosToLight, hitInfo);
         glm::vec3 specular = specularOneLight(ray, light, fromPosToLight, hitInfo);
-        result += diffuse ;
-        result += specular ;
+        result += diffuse;
+        result += specular;
     }
 
     return result;
@@ -137,7 +142,7 @@ static void shade(int level, Ray ray, glm::vec3 &color, const Scene &scene, cons
 static void shade(int level, Ray ray, glm::vec3 &color, const Scene &scene, const BoundingVolumeHierarchy &bvh, HitInfo &hitInfo)
 {
     //ComputeDirectLight
-    glm::vec3 directColor = shading(ray, hitInfo, scene);
+    glm::vec3 directColor = shading(ray, hitInfo, scene, bvh);
 
     //ComputeReflectedRay
     glm::vec3 fromCamToPos = ray.direction;
@@ -153,7 +158,7 @@ static void shade(int level, Ray ray, glm::vec3 &color, const Scene &scene, cons
 }
 static void trace(int level, Ray ray, glm::vec3 &color, const Scene &scene, const BoundingVolumeHierarchy &bvh)
 {
-    if (level >= 2)
+    if (level >= 1)
     {
         //std::cout << "end" << std::endl;
         color = glm::vec3(0.0f);
