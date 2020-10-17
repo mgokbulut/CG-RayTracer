@@ -70,16 +70,18 @@ static glm::vec3 specularOneLight(Ray &ray, const PointLight &light, const glm::
     return result;
 }
 
-static glm::vec3 diffuseOneLight(Ray& ray, const PointLight& light, const glm::vec3& fromPosToLight, HitInfo& hitInfo) {
-    drawRay(Ray{ ray.origin + ray.direction * ray.t, hitInfo.normal, 5.0f }, glm::vec3{ 0.0f, 0.0f, 1.0f });
+static glm::vec3 diffuseOneLight(Ray &ray, const PointLight &light, const glm::vec3 &fromPosToLight, HitInfo &hitInfo)
+{
+    drawRay(Ray{ray.origin + ray.direction * ray.t, hitInfo.normal, 5.0f}, glm::vec3{0.0f, 0.0f, 1.0f});
     float diffuseCos = glm::dot(fromPosToLight, hitInfo.normal);
 
-    if (diffuseCos <= 0) { // this point is facing away from the light
-        drawRay(Ray{ ray.origin + ray.direction * ray.t, fromPosToLight, 5.0f }, glm::vec3{ 1.0f, 0.0f, 0.0f });
+    if (diffuseCos <= 0)
+    { // this point is facing away from the light
+        drawRay(Ray{ray.origin + ray.direction * ray.t, fromPosToLight, 5.0f}, glm::vec3{1.0f, 0.0f, 0.0f});
         return glm::vec3(0);
     }
 
-    drawRay(Ray{ ray.origin + ray.direction * ray.t, fromPosToLight, 5.0f }, glm::vec3{ 0.0f, 1.0f, 0.0f });
+    drawRay(Ray{ray.origin + ray.direction * ray.t, fromPosToLight, 5.0f}, glm::vec3{0.0f, 1.0f, 0.0f});
     // Id * Kd * cos(theta)
     return light.color * hitInfo.material.kd * diffuseCos;
 }
@@ -88,21 +90,23 @@ static glm::vec3 diffuseOneLight(Ray& ray, const PointLight& light, const glm::v
 * first for loop
 **/
 
-static bool pointInShadow(glm::vec3& pointOn, const PointLight& light, const BoundingVolumeHierarchy& bvh)
+static bool pointInShadow(glm::vec3 &pointOn, const PointLight &light, const BoundingVolumeHierarchy &bvh)
 {
     glm::vec3 fromPosToLight = light.position - pointOn;
-    Ray ray{ pointOn, glm::normalize(fromPosToLight), std::numeric_limits<float>::max() };
+    Ray ray{pointOn, glm::normalize(fromPosToLight), std::numeric_limits<float>::max()};
 
     // set an offset to the ray not to always intersect the object at which we have our point
-    float epsilon = 0.001; 
+    float epsilon = 0.001;
     ray.origin += epsilon * ray.direction;
 
     // only check the distance of the intersected object if we intersected something
     HitInfo shadowRayHitInfo;
-    if (bvh.intersect(ray, shadowRayHitInfo)) {
+    if (bvh.intersect(ray, shadowRayHitInfo))
+    {
         //drawRay(ray, glm::vec3(0.0f, 1.0f, 0.0f));
         // if there is an object between us and the light source, we are in shadow
-        if (ray.t + epsilon >= glm::length(fromPosToLight)) {
+        if (ray.t + epsilon >= glm::length(fromPosToLight))
+        {
             //drawRay(ray, glm::vec3(0.0f, 1.0f, 0.0f));
             return false;
         }
@@ -119,9 +123,32 @@ static bool pointInShadow(glm::vec3& pointOn, const PointLight& light, const Bou
     return false;
 }
 
-static glm::vec3 shading(Ray& ray, HitInfo& hitInfo, const Scene& scene, const BoundingVolumeHierarchy& bvh)
+// static glm::vec3 shading(Ray &ray, HitInfo &hitInfo, const Scene &scene, const BoundingVolumeHierarchy &bvh)
+// {
+//     const std::vector<PointLight> &pointLights = scene.pointLights;
+//     glm::vec3 pointOn = ray.origin + ray.direction * ray.t;
+//     glm::vec3 result(0.0f);
+
+//     for (const PointLight &light : pointLights)
+//     {
+//         const glm::vec3 fromPosToLight = glm::normalize(light.position - pointOn);
+//         if (pointInShadow(pointOn, light, bvh))
+//         {
+//             continue;
+//         }
+
+//         glm::vec3 diffuse = diffuseOneLight(ray, light, fromPosToLight, hitInfo);
+//         glm::vec3 specular = specularOneLight(ray, light, fromPosToLight, hitInfo);
+//         result += diffuse;
+//         result += specular;
+//     }
+
+//     return result;
+// }
+
+static glm::vec3 shading(Ray &ray, HitInfo &hitInfo, const Scene &scene, const BoundingVolumeHierarchy &bvh)
 {
-    const std::vector<PointLight>& pointLights = scene.pointLights;
+    const std::vector<PointLight> &pointLights = scene.pointLights;
     const std::vector<SphericalLight> &sphericalLights = scene.sphericalLight;
     glm::vec3 pointOn = ray.origin + ray.direction * ray.t;
     glm::vec3 result(0.0f);
@@ -150,7 +177,8 @@ static glm::vec3 shading(Ray& ray, HitInfo& hitInfo, const Scene& scene, const B
         const PointLight &light = {spherical.position, spherical.color};
 
         const glm::vec3 fromPosToLight = glm::normalize(light.position - pointOn);
-        if (pointInShadow(pointOn, light, bvh)) {
+        if (pointInShadow(pointOn, light, bvh))
+        {
             continue;
         }
 
@@ -159,10 +187,16 @@ static glm::vec3 shading(Ray& ray, HitInfo& hitInfo, const Scene& scene, const B
         result += diffuse * softShadowCounter;
         result += specular * softShadowCounter;
     }
+
     for (const PointLight &light : pointLights)
     {
         const glm::vec3 fromPosToLight = glm::normalize(light.position - pointOn);
-        glm::vec3 diffuse = diffuseOneLight(light, fromPosToLight, hitInfo);
+        if (pointInShadow(pointOn, light, bvh))
+        {
+            continue;
+        }
+
+        glm::vec3 diffuse = diffuseOneLight(ray, light, fromPosToLight, hitInfo);
         glm::vec3 specular = specularOneLight(ray, light, fromPosToLight, hitInfo);
         result += diffuse;
         result += specular;
@@ -194,7 +228,7 @@ static void shade(int level, Ray ray, glm::vec3 &color, const Scene &scene, cons
 }
 static void trace(int level, Ray ray, glm::vec3 &color, const Scene &scene, const BoundingVolumeHierarchy &bvh)
 {
-    if (level >= 1)
+    if (level >= 2)
     {
         //std::cout << "end" << std::endl;
         color = glm::vec3(0.0f);
