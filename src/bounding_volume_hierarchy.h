@@ -6,6 +6,7 @@
 struct Node
 {
     bool isLeaf;
+    int level;
     AxisAlignedBox AABB;
     std::vector<Node> subTree;
     std::vector<Mesh> meshes;
