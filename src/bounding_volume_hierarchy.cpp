@@ -3,24 +3,23 @@
 
 AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes);
 void sortTrianglesByCentres(std::vector<Triangle> &triangles, Mesh &onlyMesh, int longestAxis);
-void createTree(Node &node);
+AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes);
 
 BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
     : m_pScene(pScene)
 {
     std::vector<Mesh> meshes = pScene->meshes;
-    AxisAlignedBox rootAABB = getRootBoundingBox(meshes);
-    bool isRootLeaf = false; //you got to get the level and if it is (1 or 0), then the root has to be a leaf because the recursive function can not know that.
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    AxisAlignedBox rootAABB = getBoundingBoxFromMeshes(meshes);
+
     Node root{
-        isRootLeaf,
+        (numLevels() == 0),
         0,
         rootAABB,
         {},
         meshes,
     };
     createTree(root);
-    //nodes.push_back(root);
+
     // as an example of how to iterate over all meshes in the scene, look at the intersect method below
 }
 
@@ -102,21 +101,21 @@ void getChildMeshesOneMesh(std::vector<Mesh> &leftChild, std::vector<Mesh> &righ
 
 int BoundingVolumeHierarchy::numLevels() const
 {
-    return 7;
+    return 8;
 }
 
 AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes)
 {
 
-    glm::vec3 firstTriangle = meshes[0].triangles[0];
+    float firstTriangleVertex = meshes[0].triangles[0].x;
     //                                  modify vvvvvv if it does not work!!!
-    float max_x = meshes[0].vertices[firstTriangle.x].p.x;
-    float max_y = meshes[0].vertices[firstTriangle.x].p.y;
-    float max_z = meshes[0].vertices[firstTriangle.x].p.z;
+    float max_x = meshes[0].vertices[firstTriangleVertex].p.x;
+    float max_y = meshes[0].vertices[firstTriangleVertex].p.y;
+    float max_z = meshes[0].vertices[firstTriangleVertex].p.z;
 
-    float min_x = meshes[0].vertices[firstTriangle.x].p.x;
-    float min_y = meshes[0].vertices[firstTriangle.x].p.y;
-    float min_z = meshes[0].vertices[firstTriangle.x].p.z;
+    float min_x = meshes[0].vertices[firstTriangleVertex].p.x;
+    float min_y = meshes[0].vertices[firstTriangleVertex].p.y;
+    float min_z = meshes[0].vertices[firstTriangleVertex].p.z;
 
     for (Mesh mesh : meshes)
     {
@@ -125,7 +124,7 @@ AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes)
         {
             for (int i = 0; i < 3; i++)
             {
-                Vertex current = meshes[0].vertices[(i == 0) ? t.x : ((i == 1) ? t.y : t.z)];
+                Vertex current = mesh.vertices[(i == 0) ? t.x : ((i == 1) ? t.y : t.z)];
                 glm::vec3 p = current.p;
                 min_x = (p.x < min_x) ? p.x : min_x;
                 min_y = (p.y < min_y) ? p.y : min_y;
@@ -140,7 +139,7 @@ AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes)
     return AxisAlignedBox{glm::vec3{min_x, min_y, min_z}, glm::vec3{max_x, max_y, max_z}};
 }
 
-void getSubNodes(Node &node)
+void BoundingVolumeHierarchy::getSubNodes(Node &node)
 {
     if (node.meshes.size() == 1)
     {
@@ -168,9 +167,12 @@ void getSubNodes(Node &node)
 
     std::vector<Mesh> leftChild;
     std::vector<Mesh> rightChild;
+    AxisAlignedBox AABB_left;
+    AxisAlignedBox AABB_right;
+
     if (node.meshes.size() > 1)
     {
-        std::cout << node.meshes.size() << std::endl;
+        //std::cout << node.meshes.size() << std::endl;
 
         // divide the meshes into groups
         //std::cout << node.meshes.size() << std::endl;
@@ -180,24 +182,23 @@ void getSubNodes(Node &node)
     }
     else
     {
-        std::cout << "hi " << std::endl;
+        //std::cout << "hi " << std::endl;
 
         Mesh onlyMesh = node.meshes[0];
         // onlyMesh, leftChild and rightChild are all passed by reference
         getChildMeshesOneMesh(leftChild, rightChild, onlyMesh, longestAxis);
     }
 
+    AABB_left = getBoundingBoxFromMeshes(leftChild);
+    AABB_right = getBoundingBoxFromMeshes(rightChild);
     Node leftNode;
     Node rightNode;
 
-    int maxLevel = 7; // change later
-    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-    bool areLeaf = (node.level + 1 == maxLevel);
+    bool areLeaf = (node.level + 1 == numLevels());
 
     std::vector<Node> children;
-    children.push_back(Node{areLeaf, node.level + 1, getBoundingBoxFromMeshes(leftChild), {}, leftChild});
-    children.push_back(Node{areLeaf, node.level + 1, getBoundingBoxFromMeshes(rightChild), {}, rightChild});
+    children.push_back(Node{areLeaf, node.level + 1, AABB_left, {}, leftChild});
+    children.push_back(Node{areLeaf, node.level + 1, AABB_right, {}, rightChild});
     node.subTree = children;
 }
 
@@ -301,13 +302,16 @@ void BoundingVolumeHierarchy::debugDraw(int level)
     // {
     //     drawAABB(AABB, DrawMode::Filled, color, 1);
     // }
+    //int howManyTimes = 0;
     for (Node n : nodes)
     {
         if (n.level == level)
         {
+            //howManyTimes++;
             drawAABB(n.AABB, DrawMode::Filled, color, 1);
         }
     }
+    //std::cout << howManyTimes << std::endl;
     //drawAABB(aabb, DrawMode::Wireframe);
     //drawAABB(aabb, DrawMode::Filled, glm::vec3(0.05f, 1.0f, 0.05f), 1);
 }

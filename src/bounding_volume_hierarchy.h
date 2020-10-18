@@ -19,7 +19,7 @@ private:
     Scene *m_pScene;
 
     std::vector<Node> nodes;
-
+    void getSubNodes(Node &node);
     void createTree(Node &node);
 
 public:
