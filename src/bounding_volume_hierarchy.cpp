@@ -20,7 +20,7 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
         meshes,
     };
     createTree(root);
-    nodes.push_back(root);
+    //nodes.push_back(root);
     // as an example of how to iterate over all meshes in the scene, look at the intersect method below
 }
 
@@ -74,6 +74,7 @@ void getVerticesFromTriangles(std::vector<Vertex> &vertices, std::vector<Triangl
 void getChildMeshesMultipleMeshes(std::vector<Mesh> &leftChild, std::vector<Mesh> &rightChild,
                                   std::vector<Mesh> meshesCopy, int longestAxis)
 {
+
     sortMeshesByCentres(meshesCopy, longestAxis);
 
     // split the meshes for the 2 child nodes
@@ -101,7 +102,7 @@ void getChildMeshesOneMesh(std::vector<Mesh> &leftChild, std::vector<Mesh> &righ
 
 int BoundingVolumeHierarchy::numLevels() const
 {
-    return 5;
+    return 7;
 }
 
 AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes)
@@ -141,6 +142,14 @@ AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes)
 
 void getSubNodes(Node &node)
 {
+    if (node.meshes.size() == 1)
+    {
+        if (node.meshes[0].triangles.size() == 1)
+        {
+            node.isLeaf = true;
+            return;
+        }
+    }
     glm::vec3 mins = node.AABB.lower;
     glm::vec3 maxs = node.AABB.upper;
     float x = maxs.x - mins.x;
@@ -161,11 +170,18 @@ void getSubNodes(Node &node)
     std::vector<Mesh> rightChild;
     if (node.meshes.size() > 1)
     {
+        std::cout << node.meshes.size() << std::endl;
+
         // divide the meshes into groups
+        //std::cout << node.meshes.size() << std::endl;
+        //std::cout << right.size() << " " << rightChild.size() << std::endl;
         getChildMeshesMultipleMeshes(leftChild, rightChild, node.meshes, longestAxis);
+        //std::cout << node.meshes.size() << " " << leftChild.size() << " " << rightChild.size() << std::endl;
     }
     else
     {
+        std::cout << "hi " << std::endl;
+
         Mesh onlyMesh = node.meshes[0];
         // onlyMesh, leftChild and rightChild are all passed by reference
         getChildMeshesOneMesh(leftChild, rightChild, onlyMesh, longestAxis);
@@ -187,9 +203,10 @@ void getSubNodes(Node &node)
 
 // recursive function that will create the whole tree
 // this method will get a node and create/return its subtrees
-void createTree(Node &node)
+void BoundingVolumeHierarchy::createTree(Node &node)
 {
 
+    nodes.push_back(node);
     // ending condition is when the node is leaf.
     if (node.isLeaf)
     {
@@ -199,6 +216,7 @@ void createTree(Node &node)
     {
         // make the recursive call
         getSubNodes(node);
+
         for (Node subNode : node.subTree)
         {
             createTree(subNode);
@@ -234,6 +252,25 @@ AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes)
     return AxisAlignedBox{glm::vec3{min_x, min_y, min_z}, glm::vec3{max_x, max_y, max_z}};
 }
 
+void getNodesAtLevel(Node &node, std::vector<AxisAlignedBox> &result, int level)
+{
+
+    if (node.level == level)
+    {
+        result.push_back(node.AABB);
+        return;
+    }
+    if (node.isLeaf)
+    {
+        return;
+    }
+
+    for (Node child : node.subTree)
+    {
+        getNodesAtLevel(child, result, level);
+    }
+}
+
 // Use this function to visualize your BVH. This can be useful for debugging. Use the functions in
 // draw.h to draw the various shapes. We have extended the AABB draw functions to support wireframe
 // mode, arbitrary colors and transparency.
@@ -246,9 +283,33 @@ void BoundingVolumeHierarchy::debugDraw(int level)
 
     // Draw the AABB as a (white) wireframe box.
     //AxisAlignedBox aabb{glm::vec3(-0.05f), glm::vec3(0.05f, 1.05f, 1.05f)};
-    AxisAlignedBox aabb = nodes[0].AABB;
+    // AxisAlignedBox aabb = nodes[nodes.size() - 1].AABB;
+    glm::vec3 color = glm::vec3(0.05f, 1.0f, 0.05f);
+    //glm::vec3(1.0f, 1.0f, 1.0f);
+    // for (Node node : nodes)
+    // {
+    //     drawAABB(node.AABB, DrawMode::Filled, color, 1);
+    //     //color -= 0.1f;
+    // }
+    // std::vector<AxisAlignedBox> results;
+    // getNodesAtLevel(nodes[0], results, level);
+
+    //std::cout << nodes.size() << std::endl;
+
+    // std::cout << results.size() << std::endl;
+    // for (AxisAlignedBox AABB : results)
+    // {
+    //     drawAABB(AABB, DrawMode::Filled, color, 1);
+    // }
+    for (Node n : nodes)
+    {
+        if (n.level == level)
+        {
+            drawAABB(n.AABB, DrawMode::Filled, color, 1);
+        }
+    }
     //drawAABB(aabb, DrawMode::Wireframe);
-    drawAABB(aabb, DrawMode::Filled, glm::vec3(0.05f, 1.0f, 0.05f), 0.1);
+    //drawAABB(aabb, DrawMode::Filled, glm::vec3(0.05f, 1.0f, 0.05f), 1);
 }
 
 // Return true if something is hit, returns false otherwise. Only find hits if they are closer than t stored

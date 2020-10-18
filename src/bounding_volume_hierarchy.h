@@ -14,6 +14,14 @@ struct Node
 
 class BoundingVolumeHierarchy
 {
+
+private:
+    Scene *m_pScene;
+
+    std::vector<Node> nodes;
+
+    void createTree(Node &node);
+
 public:
     BoundingVolumeHierarchy(Scene *pScene);
 
@@ -26,9 +34,10 @@ public:
     // is on the correct side of the origin (the new t >= 0).
     bool intersect(Ray &ray, HitInfo &hitInfo) const;
 
-private:
-    Scene *m_pScene;
-    std::vector<Node> nodes;
+    // void addToNodes(const Node &node)
+    // {
+    //     nodes.push_back(node);
+    // }
 
     //std::vector<Axis>
 };
