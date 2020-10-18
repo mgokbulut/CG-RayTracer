@@ -218,6 +218,8 @@ static void shade(int level, Ray ray, glm::vec3 &color, const Scene &scene, cons
     glm::vec3 fromCamToPos = ray.direction;
     glm::vec3 reflected = glm::normalize(glm::reflect(fromCamToPos, hitInfo.normal));
     Ray reflectedRay = {ray.origin + ray.direction * ray.t, reflected, glm::length(fromCamToPos)};
+    float epsilon = 0.001;
+    reflectedRay.origin += epsilon * reflectedRay.direction;
     //drawRay(reflectedRay, glm::vec3{1.0f, 0.0f, 0.0f});
 
     glm::vec3 reflectedColor;
