@@ -2,64 +2,78 @@
 #include "draw.h"
 
 AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes);
-void sortTrianglesByCentres(std::vector<Triangle>& triangles, Mesh& onlyMesh, int longestAxis);
-
+void sortTrianglesByCentres(std::vector<Triangle> &triangles, Mesh &onlyMesh, int longestAxis);
+void createTree(Node &node);
 
 BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
     : m_pScene(pScene)
 {
     std::vector<Mesh> meshes = pScene->meshes;
-    AxisAlignedBox root = getRootBoundingBox(meshes);
-    Node n{false, 0, root, {}, {}};
-    nodes.push_back(n);
+    AxisAlignedBox rootAABB = getRootBoundingBox(meshes);
+    bool isRootLeaf = false; //you got to get the level and if it is (1 or 0), then the root has to be a leaf because the recursive function can not know that.
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    Node root{
+        isRootLeaf,
+        0,
+        rootAABB,
+        {},
+        meshes,
+    };
+    createTree(root);
+    nodes.push_back(root);
     // as an example of how to iterate over all meshes in the scene, look at the intersect method below
 }
 
-void sortMeshesByCentres(std::vector<Mesh>& meshes, int longestAxis) {
+void sortMeshesByCentres(std::vector<Mesh> &meshes, int longestAxis)
+{
     std::sort(meshes.begin(), meshes.end(),
-        [longestAxis](Mesh& m1, Mesh& m2) {
-            std::vector<Triangle> triangles1 = m1.triangles;
-            sortTrianglesByCentres(triangles1, m1, longestAxis); // triangles1 is now sorted
-            std::vector<Triangle> triangles2 = m2.triangles;
-            sortTrianglesByCentres(triangles2, m2, longestAxis); // triangles2 is now sorted
+              [longestAxis](Mesh &m1, Mesh &m2) {
+                  std::vector<Triangle> triangles1 = m1.triangles;
+                  sortTrianglesByCentres(triangles1, m1, longestAxis); // triangles1 is now sorted
+                  std::vector<Triangle> triangles2 = m2.triangles;
+                  sortTrianglesByCentres(triangles2, m2, longestAxis); // triangles2 is now sorted
 
-            // get the middle triangle from the sorted triangles
-            Triangle middle1 = triangles1[triangles1.size() / 2];
-            Triangle middle2 = triangles2[triangles2.size() / 2];
+                  // get the middle triangle from the sorted triangles
+                  Triangle middle1 = triangles1[triangles1.size() / 2];
+                  Triangle middle2 = triangles2[triangles2.size() / 2];
 
-            glm::vec3 c1 = (m1.vertices[middle1[0]].p + m1.vertices[middle1[1]].p + m1.vertices[middle1[2]].p) / 3.0f;
-            glm::vec3 c2 = (m2.vertices[middle1[0]].p + m2.vertices[middle1[1]].p + m2.vertices[middle1[2]].p) / 3.0f;
+                  glm::vec3 c1 = (m1.vertices[middle1[0]].p + m1.vertices[middle1[1]].p + m1.vertices[middle1[2]].p) / 3.0f;
+                  glm::vec3 c2 = (m2.vertices[middle2[0]].p + m2.vertices[middle2[1]].p + m2.vertices[middle2[2]].p) / 3.0f;
 
-            float coord1 = (longestAxis == 0) ? c1.x : ((longestAxis == 1) ? c1.y : (longestAxis == 2) ? c1.z : -1);
-            float coord2 = (longestAxis == 0) ? c2.x : ((longestAxis == 1) ? c2.y : (longestAxis == 2) ? c2.z : -1);
+                  float coord1 = (longestAxis == 0) ? c1.x : ((longestAxis == 1) ? c1.y : (longestAxis == 2) ? c1.z : -1);
+                  float coord2 = (longestAxis == 0) ? c2.x : ((longestAxis == 1) ? c2.y : (longestAxis == 2) ? c2.z : -1);
 
-            return coord1 < coord2;
-        });
+                  return coord1 < coord2;
+              });
 }
 
-void sortTrianglesByCentres(std::vector<Triangle>& triangles, Mesh& onlyMesh, int longestAxis) {
+void sortTrianglesByCentres(std::vector<Triangle> &triangles, Mesh &onlyMesh, int longestAxis)
+{
     std::sort(triangles.begin(), triangles.end(),
-        [&onlyMesh, longestAxis](const auto& t1, const auto& t2) {
-            glm::vec3 c1 = (onlyMesh.vertices[t1[0]].p + onlyMesh.vertices[t1[1]].p + onlyMesh.vertices[t1[2]].p) / 3.0f;
-            glm::vec3 c2 = (onlyMesh.vertices[t2[0]].p + onlyMesh.vertices[t2[1]].p + onlyMesh.vertices[t2[2]].p) / 3.0f;
+              [&onlyMesh, longestAxis](const auto &t1, const auto &t2) {
+                  glm::vec3 c1 = (onlyMesh.vertices[t1[0]].p + onlyMesh.vertices[t1[1]].p + onlyMesh.vertices[t1[2]].p) / 3.0f;
+                  glm::vec3 c2 = (onlyMesh.vertices[t2[0]].p + onlyMesh.vertices[t2[1]].p + onlyMesh.vertices[t2[2]].p) / 3.0f;
 
-            float coord1 = (longestAxis == 0) ? c1.x : ((longestAxis == 1) ? c1.y : (longestAxis == 2) ? c1.z : -1);
-            float coord2 = (longestAxis == 0) ? c2.x : ((longestAxis == 1) ? c2.y : (longestAxis == 2) ? c2.z : -1);
+                  float coord1 = (longestAxis == 0) ? c1.x : ((longestAxis == 1) ? c1.y : (longestAxis == 2) ? c1.z : -1);
+                  float coord2 = (longestAxis == 0) ? c2.x : ((longestAxis == 1) ? c2.y : (longestAxis == 2) ? c2.z : -1);
 
-            return coord1 < coord2;
-        });
+                  return coord1 < coord2;
+              });
 }
 
-void getVerticesFromTriangles(std::vector<Vertex>& vertices, std::vector<Triangle>& triangles, Mesh onlyMesh) {
-    for (Triangle t : triangles) {
+void getVerticesFromTriangles(std::vector<Vertex> &vertices, std::vector<Triangle> &triangles, Mesh onlyMesh)
+{
+    for (Triangle t : triangles)
+    {
         vertices.push_back(onlyMesh.vertices[t[0]]);
         vertices.push_back(onlyMesh.vertices[t[1]]);
         vertices.push_back(onlyMesh.vertices[t[2]]);
     }
 }
 
-void getChildMeshesMultipleMeshes(std::vector<Mesh>& leftChild, std::vector<Mesh>& rightChild,
-    std::vector<Mesh> meshesCopy, int longestAxis) {
+void getChildMeshesMultipleMeshes(std::vector<Mesh> &leftChild, std::vector<Mesh> &rightChild,
+                                  std::vector<Mesh> meshesCopy, int longestAxis)
+{
     sortMeshesByCentres(meshesCopy, longestAxis);
 
     // split the meshes for the 2 child nodes
@@ -70,9 +84,10 @@ void getChildMeshesMultipleMeshes(std::vector<Mesh>& leftChild, std::vector<Mesh
     rightChild = right;
 }
 
-void getChildMeshesOneMesh(std::vector<Mesh>& leftChild, std::vector<Mesh>& rightChild, Mesh& onlyMesh, int longestAxis) {
+void getChildMeshesOneMesh(std::vector<Mesh> &leftChild, std::vector<Mesh> &rightChild, Mesh &onlyMesh, int longestAxis)
+{
     std::vector<Triangle> triangles = onlyMesh.triangles; // copy of the triangles
-    std::vector<Vertex>& allVertices = onlyMesh.vertices;
+    std::vector<Vertex> &allVertices = onlyMesh.vertices;
     sortTrianglesByCentres(triangles, onlyMesh, longestAxis);
 
     // split the triangles for the 2 child nodes
@@ -80,8 +95,8 @@ void getChildMeshesOneMesh(std::vector<Mesh>& leftChild, std::vector<Mesh>& righ
     std::vector<Triangle> leftTriangles(triangles.begin(), triangles.begin() + triangles.size() / 2);
     std::vector<Triangle> rightTriangles(triangles.begin() + triangles.size() / 2, triangles.end());
 
-    leftChild.push_back(Mesh{ allVertices, leftTriangles, onlyMesh.material });
-    rightChild.push_back(Mesh{ allVertices, rightTriangles, onlyMesh.material });
+    leftChild.push_back(Mesh{allVertices, leftTriangles, onlyMesh.material});
+    rightChild.push_back(Mesh{allVertices, rightTriangles, onlyMesh.material});
 }
 
 int BoundingVolumeHierarchy::numLevels() const
@@ -89,22 +104,26 @@ int BoundingVolumeHierarchy::numLevels() const
     return 5;
 }
 
-AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh>& meshes) {
+AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes)
+{
+
     glm::vec3 firstTriangle = meshes[0].triangles[0];
-
     //                                  modify vvvvvv if it does not work!!!
-    float max_x = meshes[0].vertices[firstTriangle[0]].p.x;
-    float max_y = meshes[0].vertices[firstTriangle[0]].p.y;
-    float max_z = meshes[0].vertices[firstTriangle[0]].p.z;
+    float max_x = meshes[0].vertices[firstTriangle.x].p.x;
+    float max_y = meshes[0].vertices[firstTriangle.x].p.y;
+    float max_z = meshes[0].vertices[firstTriangle.x].p.z;
 
-    float min_x = meshes[0].vertices[firstTriangle[0]].p.x;
-    float min_y = meshes[0].vertices[firstTriangle[0]].p.y;
-    float min_z = meshes[0].vertices[firstTriangle[0]].p.z;
+    float min_x = meshes[0].vertices[firstTriangle.x].p.x;
+    float min_y = meshes[0].vertices[firstTriangle.x].p.y;
+    float min_z = meshes[0].vertices[firstTriangle.x].p.z;
 
-    for (Mesh mesh : meshes) {
-        std::vector<Triangle>& meshTriangles = mesh.triangles;
-        for (Triangle t : meshTriangles) {
-            for (int i = 0; i < 3; i++) {
+    for (Mesh mesh : meshes)
+    {
+        std::vector<Triangle> &meshTriangles = mesh.triangles;
+        for (Triangle t : meshTriangles)
+        {
+            for (int i = 0; i < 3; i++)
+            {
                 Vertex current = meshes[0].vertices[(i == 0) ? t.x : ((i == 1) ? t.y : t.z)];
                 glm::vec3 p = current.p;
                 min_x = (p.x < min_x) ? p.x : min_x;
@@ -117,10 +136,10 @@ AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh>& meshes) {
             }
         }
     }
-    return AxisAlignedBox{ glm::vec3{min_x, min_y, min_z}, glm::vec3{max_x, max_y, max_z} };
+    return AxisAlignedBox{glm::vec3{min_x, min_y, min_z}, glm::vec3{max_x, max_y, max_z}};
 }
 
-void getSubNodes(Node& node)
+void getSubNodes(Node &node)
 {
     glm::vec3 mins = node.AABB.lower;
     glm::vec3 maxs = node.AABB.upper;
@@ -140,11 +159,13 @@ void getSubNodes(Node& node)
 
     std::vector<Mesh> leftChild;
     std::vector<Mesh> rightChild;
-    if (node.meshes.size() > 1) {
+    if (node.meshes.size() > 1)
+    {
         // divide the meshes into groups
         getChildMeshesMultipleMeshes(leftChild, rightChild, node.meshes, longestAxis);
     }
-    else {
+    else
+    {
         Mesh onlyMesh = node.meshes[0];
         // onlyMesh, leftChild and rightChild are all passed by reference
         getChildMeshesOneMesh(leftChild, rightChild, onlyMesh, longestAxis);
@@ -154,16 +175,35 @@ void getSubNodes(Node& node)
     Node rightNode;
 
     int maxLevel = 7; // change later
+    // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
     bool areLeaf = (node.level + 1 == maxLevel);
 
     std::vector<Node> children;
-    children.push_back(Node{ areLeaf, node.level + 1, getBoundingBoxFromMeshes(leftChild), {}, leftChild});
-    children.push_back(Node{ areLeaf, node.level + 1, getBoundingBoxFromMeshes(rightChild), {}, rightChild});
+    children.push_back(Node{areLeaf, node.level + 1, getBoundingBoxFromMeshes(leftChild), {}, leftChild});
+    children.push_back(Node{areLeaf, node.level + 1, getBoundingBoxFromMeshes(rightChild), {}, rightChild});
+    node.subTree = children;
 }
 
 // recursive function that will create the whole tree
-void createTree(Node root)
+// this method will get a node and create/return its subtrees
+void createTree(Node &node)
 {
+
+    // ending condition is when the node is leaf.
+    if (node.isLeaf)
+    {
+        return;
+    }
+    else
+    {
+        // make the recursive call
+        getSubNodes(node);
+        for (Node subNode : node.subTree)
+        {
+            createTree(subNode);
+        }
+    }
 }
 
 AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes)
