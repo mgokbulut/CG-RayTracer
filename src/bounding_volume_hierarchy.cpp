@@ -83,7 +83,7 @@ AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh>& meshes) {
     return AxisAlignedBox{ glm::vec3{min_x, min_y, min_z}, glm::vec3{max_x, max_y, max_z} };
 }
 
-void getSubNodes(Node node)
+void getSubNodes(Node& node)
 {
     glm::vec3 mins = node.AABB.lower;
     glm::vec3 maxs = node.AABB.upper;
@@ -93,10 +93,12 @@ void getSubNodes(Node node)
     int longestAxis = (x > y) ? ((x > z) ? 0 : 2) : ((y > z) ? 1 : 2);
 
     // --- TODO List --- //
-    // we want to sort the triangles based on their centers to get the median triangle
-    // after that, devide the vector of triangles into two vectors
+    // we want to sort the triangles based on their centers to get the median triangle --> done
+    // after that, devide the vector of triangles into two vectors --> done
     // fill createTree method to construct tree of those nodes.
-    // make node a referance.
+    // make node a referance. --> done
+    // implement dividing the node when it contains multiple meshes
+    // create the two subnodes in getSubNodes (this function)
 
     if (node.meshes.size() > 1) {
         // divide the meshes into groups
@@ -105,6 +107,7 @@ void getSubNodes(Node node)
         Mesh onlyMesh = node.meshes[0];
         Mesh leftChild;
         Mesh rightChild;
+        // onlyMesh, leftChild and rightChild are all passed by reference
         getChildMeshesOneMesh(leftChild, rightChild, onlyMesh, longestAxis);
     }
 
