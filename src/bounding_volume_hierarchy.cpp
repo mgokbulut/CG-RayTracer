@@ -101,7 +101,7 @@ void getChildMeshesOneMesh(std::vector<Mesh> &leftChild, std::vector<Mesh> &righ
 
 int BoundingVolumeHierarchy::numLevels() const
 {
-    return 8;
+    return 10;
 }
 
 AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes)
@@ -308,12 +308,77 @@ void BoundingVolumeHierarchy::debugDraw(int level)
         if (n.level == level)
         {
             //howManyTimes++;
-            drawAABB(n.AABB, DrawMode::Filled, color, 1);
+            drawAABB(n.AABB, DrawMode::Filled, color, 0.9);
         }
     }
     //std::cout << howManyTimes << std::endl;
     //drawAABB(aabb, DrawMode::Wireframe);
     //drawAABB(aabb, DrawMode::Filled, glm::vec3(0.05f, 1.0f, 0.05f), 1);
+}
+
+bool intersectRecursive(Ray& ray, HitInfo& hitInfo, const Node& current) {
+    AxisAlignedBox AABB = current.AABB;
+
+    float originalT = ray.t;
+    if (current.isLeaf) {
+        for (const auto& mesh : current.meshes)
+        {
+            for (const auto& tri : mesh.triangles)
+            {
+                const auto v0 = mesh.vertices[tri[0]];
+                const auto v1 = mesh.vertices[tri[1]];
+                const auto v2 = mesh.vertices[tri[2]];
+                if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo))
+                {
+                    hitInfo.material = mesh.material;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    std::vector<float> t;
+    std::vector<Node> intersected;
+
+    for (const Node& child : current.subTree) {
+        if (intersectRayWithShape(child.AABB, ray)) {
+            t.push_back(ray.t);
+            intersected.push_back(child);
+            ray.t = originalT;
+        }
+    }
+
+    if (t.size() == 0) {
+        return false;
+    }
+    else if (t.size() == 1) {
+        return intersectRecursive(ray, hitInfo, intersected[0]);
+    }
+    else if (t[0] < t[1]) {
+        if (intersectRecursive(ray, hitInfo, intersected[0])) {
+            return true;
+        }
+        return intersectRecursive(ray, hitInfo, intersected[1]);
+    }
+    else {
+        if (intersectRecursive(ray, hitInfo, intersected[1])) {
+            return true;
+        }
+        return intersectRecursive(ray, hitInfo, intersected[0]);
+    }
+}
+
+bool intersectDataStructure (Ray &ray, HitInfo &hitInfo, const Node &root) {
+    AxisAlignedBox AABB = root.AABB;
+
+    float originalT = ray.t;
+    if (intersectRayWithShape(AABB, ray)) {
+        ray.t = originalT;
+        return intersectRecursive(ray, hitInfo, root);
+    }
+
+    return false;
 }
 
 // Return true if something is hit, returns false otherwise. Only find hits if they are closer than t stored
@@ -323,22 +388,23 @@ void BoundingVolumeHierarchy::debugDraw(int level)
 bool BoundingVolumeHierarchy::intersect(Ray &ray, HitInfo &hitInfo) const
 {
     bool hit = false;
-    // Intersect with all triangles of all meshes.
-    for (const auto &mesh : m_pScene->meshes)
-    {
-        for (const auto &tri : mesh.triangles)
-        {
-            const auto v0 = mesh.vertices[tri[0]];
-            const auto v1 = mesh.vertices[tri[1]];
-            const auto v2 = mesh.vertices[tri[2]];
-            if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo))
-            {
-                hitInfo.material = mesh.material;
-                hit = true;
-            }
-        }
-    }
+    //// Intersect with all triangles of all meshes.
+    //for (const auto &mesh : m_pScene->meshes)
+    //{
+    //    for (const auto &tri : mesh.triangles)
+    //    {
+    //        const auto v0 = mesh.vertices[tri[0]];
+    //        const auto v1 = mesh.vertices[tri[1]];
+    //        const auto v2 = mesh.vertices[tri[2]];
+    //        if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo))
+    //        {
+    //            hitInfo.material = mesh.material;
+    //            hit = true;
+    //        }
+    //    }
+    //}
     // Intersect with spheres.
+    hit = intersectDataStructure(ray, hitInfo, nodes[0]);
     for (const auto &sphere : m_pScene->spheres)
         hit |= intersectRayWithShape(sphere, ray, hitInfo);
     return hit;
