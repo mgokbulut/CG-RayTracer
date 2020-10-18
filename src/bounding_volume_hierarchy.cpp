@@ -2,6 +2,8 @@
 #include "draw.h"
 
 AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes);
+void sortTrianglesByCentres(std::vector<Triangle>& triangles, Mesh& onlyMesh, int longestAxis);
+
 
 BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
     : m_pScene(pScene)
@@ -11,6 +13,28 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
     Node n{false, 0, root, {}, {}};
     nodes.push_back(n);
     // as an example of how to iterate over all meshes in the scene, look at the intersect method below
+}
+
+void sortMeshesByCentres(std::vector<Mesh>& meshes, int longestAxis) {
+    std::sort(meshes.begin(), meshes.end(),
+        [longestAxis](Mesh& m1, Mesh& m2) {
+            std::vector<Triangle> triangles1 = m1.triangles;
+            sortTrianglesByCentres(triangles1, m1, longestAxis); // triangles1 is now sorted
+            std::vector<Triangle> triangles2 = m2.triangles;
+            sortTrianglesByCentres(triangles2, m2, longestAxis); // triangles2 is now sorted
+
+            // get the middle triangle from the sorted triangles
+            Triangle middle1 = triangles1[triangles1.size() / 2];
+            Triangle middle2 = triangles2[triangles2.size() / 2];
+
+            glm::vec3 c1 = (m1.vertices[middle1[0]].p + m1.vertices[middle1[1]].p + m1.vertices[middle1[2]].p) / 3.0f;
+            glm::vec3 c2 = (m2.vertices[middle1[0]].p + m2.vertices[middle1[1]].p + m2.vertices[middle1[2]].p) / 3.0f;
+
+            float coord1 = (longestAxis == 0) ? c1.x : ((longestAxis == 1) ? c1.y : (longestAxis == 2) ? c1.z : -1);
+            float coord2 = (longestAxis == 0) ? c2.x : ((longestAxis == 1) ? c2.y : (longestAxis == 2) ? c2.z : -1);
+
+            return coord1 < coord2;
+        });
 }
 
 void sortTrianglesByCentres(std::vector<Triangle>& triangles, Mesh& onlyMesh, int longestAxis) {
@@ -34,7 +58,19 @@ void getVerticesFromTriangles(std::vector<Vertex>& vertices, std::vector<Triangl
     }
 }
 
-void getChildMeshesOneMesh(Mesh& leftChild, Mesh& rightChild, Mesh& onlyMesh, int longestAxis) {
+void getChildMeshesMultipleMeshes(std::vector<Mesh>& leftChild, std::vector<Mesh>& rightChild,
+    std::vector<Mesh> meshesCopy, int longestAxis) {
+    sortMeshesByCentres(meshesCopy, longestAxis);
+
+    // split the meshes for the 2 child nodes
+    // note: the middle element is always assigned to the left child
+    std::vector<Mesh> left(meshesCopy.begin(), meshesCopy.begin() + meshesCopy.size() / 2);
+    std::vector<Mesh> right(meshesCopy.begin() + meshesCopy.size() / 2, meshesCopy.end());
+    leftChild = left;
+    rightChild = right;
+}
+
+void getChildMeshesOneMesh(std::vector<Mesh>& leftChild, std::vector<Mesh>& rightChild, Mesh& onlyMesh, int longestAxis) {
     std::vector<Triangle> triangles = onlyMesh.triangles; // copy of the triangles
     std::vector<Vertex>& allVertices = onlyMesh.vertices;
     sortTrianglesByCentres(triangles, onlyMesh, longestAxis);
@@ -44,8 +80,8 @@ void getChildMeshesOneMesh(Mesh& leftChild, Mesh& rightChild, Mesh& onlyMesh, in
     std::vector<Triangle> leftTriangles(triangles.begin(), triangles.begin() + triangles.size() / 2);
     std::vector<Triangle> rightTriangles(triangles.begin() + triangles.size() / 2, triangles.end());
 
-    leftChild = Mesh{ allVertices, leftTriangles, onlyMesh.material };
-    rightChild = Mesh{ allVertices, rightTriangles, onlyMesh.material };
+    leftChild.push_back(Mesh{ allVertices, leftTriangles, onlyMesh.material });
+    rightChild.push_back(Mesh{ allVertices, rightTriangles, onlyMesh.material });
 }
 
 int BoundingVolumeHierarchy::numLevels() const
@@ -99,14 +135,16 @@ void getSubNodes(Node& node)
     // make node a referance. --> done
     // implement dividing the node when it contains multiple meshes
     // create the two subnodes in getSubNodes (this function)
+    // check the passing by value/reference
 
+    std::vector<Mesh> leftChild;
+    std::vector<Mesh> rightChild;
     if (node.meshes.size() > 1) {
         // divide the meshes into groups
+        getChildMeshesMultipleMeshes(leftChild, rightChild, node.meshes, longestAxis);
     }
     else {
         Mesh onlyMesh = node.meshes[0];
-        Mesh leftChild;
-        Mesh rightChild;
         // onlyMesh, leftChild and rightChild are all passed by reference
         getChildMeshesOneMesh(leftChild, rightChild, onlyMesh, longestAxis);
     }
@@ -120,6 +158,7 @@ void getSubNodes(Node& node)
 
 }
 
+// recursive function that will create the whole tree
 void createTree(Node root)
 {
 }
