@@ -102,7 +102,8 @@ AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh>& meshes) {
     float min_z = meshes[0].vertices[firstTriangle[0]].p.z;
 
     for (Mesh mesh : meshes) {
-        for (Triangle t : mesh.triangles) {
+        std::vector<Triangle>& meshTriangles = mesh.triangles;
+        for (Triangle t : meshTriangles) {
             for (int i = 0; i < 3; i++) {
                 Vertex current = meshes[0].vertices[(i == 0) ? t.x : ((i == 1) ? t.y : t.z)];
                 glm::vec3 p = current.p;
@@ -155,7 +156,9 @@ void getSubNodes(Node& node)
     int maxLevel = 7; // change later
     bool areLeaf = (node.level + 1 == maxLevel);
 
-
+    std::vector<Node> children;
+    children.push_back(Node{ areLeaf, node.level + 1, getBoundingBoxFromMeshes(leftChild), {}, leftChild});
+    children.push_back(Node{ areLeaf, node.level + 1, getBoundingBoxFromMeshes(rightChild), {}, rightChild});
 }
 
 // recursive function that will create the whole tree
