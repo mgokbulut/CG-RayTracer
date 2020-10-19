@@ -156,35 +156,52 @@ static glm::vec3 shading(Ray &ray, HitInfo &hitInfo, const Scene &scene, const B
 
     for (const SphericalLight &spherical : sphericalLights)
     {
+        const PointLight& light = { spherical.position, spherical.color };
+
+        const glm::vec3 fromPosToLight = glm::normalize(light.position - pointOn);
+        glm::vec3 diffuse = diffuseOneLight(ray, light, fromPosToLight, hitInfo);
+        glm::vec3 specular = specularOneLight(ray, light, fromPosToLight, hitInfo);
         softShadowCounter = 0.0f;
-        for (int i = 1; i <= 30; i++)
+        for (int i = 1; i <= 200; i++)
         {
             glm::vec3 randomPointOnSphere = spherical.position + spherical.radius * randomUnitVector();
-            Ray newRay = {pointOn + (float)(1e-5) * (glm::normalize(randomPointOnSphere - pointOn)), glm::normalize(randomPointOnSphere - pointOn), length(randomPointOnSphere - pointOn)};
-
-            if (!(bvh.intersect(newRay, hitInfo)))
+            Ray newRay = {pointOn + (float)(0.001) * (glm::normalize(randomPointOnSphere - pointOn)), glm::normalize(randomPointOnSphere - pointOn), FLT_MAX};
+            HitInfo newHitInfo;
+            float lightT = length(newRay.origin - randomPointOnSphere);
+            if (!(bvh.intersect(newRay, newHitInfo)))
             {
                 softShadowCounter += 1.0f;
                 drawRay(newRay, glm::vec3(1));
             }
             else
             {
-                drawRay(newRay, glm::vec3(1, 0, 0));
+                if (newRay.t > lightT) {
+                    softShadowCounter += 1.0f;
+                    drawRay(newRay, glm::vec3(1));
+                }
+                else {
+                    drawRay(newRay, glm::vec3(1, 0, 0));
+                }
+
             }
         }
-        softShadowCounter = softShadowCounter / 30;
+        softShadowCounter = softShadowCounter / 200.0f;
 
-        const PointLight &light = {spherical.position, spherical.color};
+        //const PointLight &light = {spherical.position, spherical.color};
 
-        const glm::vec3 fromPosToLight = glm::normalize(light.position - pointOn);
-        if (pointInShadow(pointOn, light, bvh))
+        //const glm::vec3 fromPosToLight = glm::normalize(light.position - pointOn);
+        /**if (pointInShadow(pointOn, light, bvh))
         {
             continue;
-        }
+        }*/
 
-        glm::vec3 diffuse = diffuseOneLight(ray, light, fromPosToLight, hitInfo);
-        glm::vec3 specular = specularOneLight(ray, light, fromPosToLight, hitInfo);
+        //glm::vec3 diffuse = diffuseOneLight(ray, light, fromPosToLight, hitInfo);
+        //glm::vec3 specular = specularOneLight(ray, light, fromPosToLight, hitInfo);
         result += diffuse * softShadowCounter;
+        /**std::cout<<"Result is:"<<"x:"<<result.x <<" "<<"y:"<<result.y << " " <<"z:"<<result.z << std::endl;
+        std::cout <<"Diffuse is:"<<"x:"<< diffuse.x << " " <<"y:"<< diffuse.y << " " <<"z:"<< diffuse.z << std::endl;
+        std::cout <<"Specular is:"<<"x"<< specular.x << " " <<"y:"<< specular.y << " " <<"z:"<< specular.z << std::endl;
+        std::cout << std::endl;*/
         result += specular * softShadowCounter;
     }
 
