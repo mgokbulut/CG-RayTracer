@@ -165,13 +165,14 @@ static glm::vec3 shading(Ray &ray, HitInfo &hitInfo, const Scene &scene, const B
         for (int i = 1; i <= 200; i++)
         {
             glm::vec3 randomPointOnSphere = spherical.position + spherical.radius * randomUnitVector();
-            Ray newRay = {pointOn + (float)(0.001) * (glm::normalize(randomPointOnSphere - pointOn)), glm::normalize(randomPointOnSphere - pointOn), FLT_MAX};
+            Ray newRay = {pointOn + (float)(0.001) * (glm::normalize(randomPointOnSphere - pointOn)), glm::normalize(randomPointOnSphere - pointOn), length(newRay.origin - randomPointOnSphere) };
             HitInfo newHitInfo;
             float lightT = length(newRay.origin - randomPointOnSphere);
             if (!(bvh.intersect(newRay, newHitInfo)))
             {
                 softShadowCounter += 1.0f;
                 drawRay(newRay, glm::vec3(1));
+                
             }
             else
             {
@@ -181,6 +182,7 @@ static glm::vec3 shading(Ray &ray, HitInfo &hitInfo, const Scene &scene, const B
                 }
                 else {
                     drawRay(newRay, glm::vec3(1, 0, 0));
+                    
                 }
 
             }
