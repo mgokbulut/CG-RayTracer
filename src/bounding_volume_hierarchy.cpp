@@ -8,8 +8,8 @@ AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes);
 /**
  * Constructor for the bvh. 
  * 
- * Creates the root bounding box that will contain all the meshes, 
- * uses it to create the root node and calls createTree to
+ * Create the root bounding box that will contain all the meshes, 
+ * use it to create the root node and call createTree to
  * recursively create the rest of the nodes. 
  * 
  * @param *pScene Scene pointer with all relevant information for this scene
@@ -31,10 +31,10 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
 }
 
 /**
- * Sorts multiple meshes by their centres. 
+ * Sort multiple meshes by their centres. 
  * 
  * The "centre" of a mesh is the centre of its middle triangle
- * --> uses the sortTrianglesByCentres to first sort the triangles inside meshes. 
+ * --> use the sortTrianglesByCentres to first sort the triangles inside meshes. 
  * We always only care about the coordinate defined by longestAxis. 
  * 
  * @param &meshes std::vector reference to the meshes of a node
@@ -65,7 +65,7 @@ void sortMeshesByCentres(std::vector<Mesh> &meshes, int longestAxis)
 }
 
 /**
- * Sorts triangles by their centres. 
+ * Sort triangles by their centres. 
  * 
  * The centre of a triangle is the average of its 3 vertices. 
  * We always only care about the coordinate defined by longestAxis. 
@@ -141,7 +141,7 @@ void getChildMeshesMultipleMeshes(std::vector<Mesh> &leftChild, std::vector<Mesh
  *
  * @param &leftChild std::vector reference of the mesh to add to the left child of this node
  * @param &rightChild std::vector reference of the mesh to add to the right child of this node
- * @param &onlyMesh reference to the parent mesh
+ * @param &onlyMesh Mesh reference to the parent mesh
  * @param longestAxis int determining the axis which will be split
  */
 void getChildMeshesOneMesh(std::vector<Mesh> &leftChild, std::vector<Mesh> &rightChild, Mesh &onlyMesh, int longestAxis)
@@ -224,7 +224,7 @@ AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes)
  * and a node with multiple meshes to be able to split the meshes
  * and triangles accordingly.
  * 
- * @param &node reference to a node from which we are getting
+ * @param &node Node reference to the node from which we are getting
  * AND to which we are adding the children
  */
 void BoundingVolumeHierarchy::getSubNodes(Node &node)
@@ -299,7 +299,7 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node)
  * for the two children created (iff it is not a leaf) 
  * --> in the foreach loop, the node must be a reference!!
  * 
- * @param &node reference to a node from an incomplete tree
+ * @param &node Node reference to a node from an incomplete tree
  */
 void BoundingVolumeHierarchy::createTree(Node &node)
 {
@@ -363,8 +363,8 @@ AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes)
  * 
  * Breadth-first search through a tree.
  * 
- * @param &node reference to a node in the tree
- * @param &result reference to the resulting std::vector of AABBs
+ * @param &node Node reference to a node in the tree
+ * @param &result std::vector reference to the resulting vector of AABBs
  * @param level int of the level we want to retrieve
  */
 void getNodesAtLevel(Node &node, std::vector<AxisAlignedBox> &result, int level)
@@ -498,9 +498,9 @@ bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
  * Check whether the root AABB was intersected and if that is the case, 
  * call the recursive intersection function.
  * 
- * @param &ray reference to the currently shot ray
- * @param &hitInfo reference to HitInfo
- * @param &root reference to the root node
+ * @param &ray Ray reference to the currently shot ray
+ * @param &hitInfo HitInfo reference of the current ray
+ * @param &root Node reference to the root node
  * @return intersected bool stating whether the root AABB was intersected or not
  */
 bool intersectDataStructure (Ray &ray, HitInfo &hitInfo, const Node &root) {
