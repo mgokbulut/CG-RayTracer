@@ -89,7 +89,7 @@ void sortTrianglesByCentres(std::vector<Triangle> &triangles, Mesh &onlyMesh, in
 }
 
 /**
- * Get a list of vertices from triangles. 
+ * !Not used! Get a list of vertices from triangles. 
  * 
  * Because triangles store indices for their vertices, 
  * getting the vertices of a mesh defined only by triangles is annoying.
@@ -187,23 +187,21 @@ AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes)
 
     // min and max values for each coordinate will
     // initially be the coordinates of the first point
-    float max_x = meshes[0].vertices[firstTriangleVertex].p.x;
-    float min_x = max_x;
-    float max_y = meshes[0].vertices[firstTriangleVertex].p.y;
-    float min_y = max_y;
-    float max_z = meshes[0].vertices[firstTriangleVertex].p.z;
-    float min_z = max_z;
+    float min_x, max_x, min_y, max_y, min_z, max_z;
+    min_x = max_x = meshes[0].vertices[firstTriangleVertex].p.x;
+    min_y = max_y = meshes[0].vertices[firstTriangleVertex].p.y;
+    min_z = max_z = meshes[0].vertices[firstTriangleVertex].p.z;
 
-    for (Mesh mesh : meshes)
+    for (Mesh &mesh : meshes)
     {
         std::vector<Triangle> &meshTriangles = mesh.triangles;
-        for (Triangle t : meshTriangles)
+        for (Triangle &t : meshTriangles)
         {
             // traverse the three vertices of a triangle
             for (int i = 0; i < 3; i++)
             {
-                Vertex current = mesh.vertices[(i == 0) ? t.x : ((i == 1) ? t.y : t.z)];
-                glm::vec3 p = current.p;
+                Vertex &current = mesh.vertices[(i == 0) ? t.x : ((i == 1) ? t.y : t.z)];
+                glm::vec3 &p = current.p;
                 min_x = (p.x < min_x) ? p.x : min_x;
                 min_y = (p.y < min_y) ? p.y : min_y;
                 min_z = (p.z < min_z) ? p.z : min_z;
@@ -252,10 +250,8 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node)
     
     // Create the fields that will be passed by reference to
     // and modified by other functions
-    std::vector<Mesh> leftChild;
-    std::vector<Mesh> rightChild;
-    AxisAlignedBox AABB_left;
-    AxisAlignedBox AABB_right;
+    std::vector<Mesh> leftChild, rightChild;
+    AxisAlignedBox AABB_left, AABB_right;
 
     if (node.meshes.size() > 1)
     {
@@ -280,8 +276,7 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node)
 
     AABB_left = getBoundingBoxFromMeshes(leftChild);
     AABB_right = getBoundingBoxFromMeshes(rightChild);
-    Node leftNode;
-    Node rightNode;
+    Node leftNode, rightNode;
 
     bool areLeaf = (node.level + 1 == numLevels());
 
@@ -332,20 +327,18 @@ void BoundingVolumeHierarchy::createTree(Node &node)
  */
 AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes)
 {
-    float max_x = meshes[0].vertices[0].p.x;
-    float max_y = meshes[0].vertices[0].p.y;
-    float max_z = meshes[0].vertices[0].p.z;
-    float min_x = meshes[0].vertices[0].p.x;
-    float min_y = meshes[0].vertices[0].p.y;
-    float min_z = meshes[0].vertices[0].p.z;
+    float min_x, max_x, min_y, max_y, min_z, max_z;
+    min_x = max_x = meshes[0].vertices[0].p.x;
+    min_y = max_y = meshes[0].vertices[0].p.y;
+    min_z = max_z = meshes[0].vertices[0].p.z;
 
-    for (Mesh mesh : meshes)
+    for (Mesh &mesh : meshes)
     {
-        std::vector<Vertex> vertices = mesh.vertices;
+        std::vector<Vertex> &vertices = mesh.vertices;
 
-        for (Vertex vertex : vertices)
+        for (Vertex &vertex : vertices)
         {
-            glm::vec3 p = vertex.p;
+            glm::vec3 &p = vertex.p;
             min_x = (p.x < min_x) ? p.x : min_x;
             min_y = (p.y < min_y) ? p.y : min_y;
             min_z = (p.z < min_z) ? p.z : min_z;
@@ -416,7 +409,7 @@ void BoundingVolumeHierarchy::debugDraw(int level)
     //     drawAABB(AABB, DrawMode::Filled, color, 1);
     // }
     //int howManyTimes = 0;
-    for (Node n : nodes)
+    for (Node &n : nodes)
     {
         if (n.level == level)
         {
@@ -442,7 +435,7 @@ void BoundingVolumeHierarchy::debugDraw(int level)
 bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
     AxisAlignedBox AABB = current.AABB;
 
-    float originalT = ray.t;
+    float originalT = ray.t; // CANNOT be a reference!!
     if (current.isLeaf) {
         for (const auto& mesh : current.meshes)
         {
@@ -506,7 +499,7 @@ bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
 bool intersectDataStructure (Ray &ray, HitInfo &hitInfo, const Node &root) {
     AxisAlignedBox AABB = root.AABB;
 
-    float originalT = ray.t;
+    float originalT = ray.t; // CANNOT be a reference
     if (intersectRayWithShape(AABB, ray)) {
         ray.t = originalT;
         return intersectRecursive(ray, hitInfo, root);
