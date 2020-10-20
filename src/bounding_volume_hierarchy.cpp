@@ -5,6 +5,15 @@ AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes);
 void sortTrianglesByCentres(std::vector<Triangle> &triangles, Mesh &onlyMesh, int longestAxis);
 AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes);
 
+/**
+ * Constructor for the bvh. 
+ * 
+ * Creates the root bounding box that will contain all the meshes, 
+ * uses it to create the root node and calls createTree to
+ * recursively create the rest of the nodes. 
+ * 
+ * @param *pScene Scene pointer with all relevant information for this scene
+ */
 BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
     : m_pScene(pScene)
 {
@@ -19,10 +28,18 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
         meshes,
     };
     createTree(root);
-
-    // as an example of how to iterate over all meshes in the scene, look at the intersect method below
 }
 
+/**
+ * Sorts multiple meshes by their centres. 
+ * 
+ * The "centre" of a mesh is the centre of its middle triangle
+ * --> uses the sortTrianglesByCentres to first sort the triangles inside meshes. 
+ * We always only care about the coordinate defined by longestAxis. 
+ * 
+ * @param &meshes std::vector reference to the meshes of a node
+ * @param longestAxis int deciding which axis to sort by
+ */
 void sortMeshesByCentres(std::vector<Mesh> &meshes, int longestAxis)
 {
     std::sort(meshes.begin(), meshes.end(),
@@ -32,10 +49,11 @@ void sortMeshesByCentres(std::vector<Mesh> &meshes, int longestAxis)
                   std::vector<Triangle> triangles2 = m2.triangles;
                   sortTrianglesByCentres(triangles2, m2, longestAxis); // triangles2 is now sorted
 
-                  // get the middle triangle from the sorted triangles
+                  // get the middle triangle from the sorted triangles of this mesh
                   Triangle middle1 = triangles1[triangles1.size() / 2];
                   Triangle middle2 = triangles2[triangles2.size() / 2];
 
+                  // get the centres of these middle triangles
                   glm::vec3 c1 = (m1.vertices[middle1[0]].p + m1.vertices[middle1[1]].p + m1.vertices[middle1[2]].p) / 3.0f;
                   glm::vec3 c2 = (m2.vertices[middle2[0]].p + m2.vertices[middle2[1]].p + m2.vertices[middle2[2]].p) / 3.0f;
 
@@ -46,6 +64,16 @@ void sortMeshesByCentres(std::vector<Mesh> &meshes, int longestAxis)
               });
 }
 
+/**
+ * Sorts triangles by their centres. 
+ * 
+ * The centre of a triangle is the average of its 3 vertices. 
+ * We always only care about the coordinate defined by longestAxis. 
+ * 
+ * @param &triangles std::vector reference to the triangles of a mesh
+ * @param &onlyMesh Mesh reference to the mesh of which we want to sort the triangles
+ * @param longestAxis int deciding which axis to sort by
+ */
 void sortTrianglesByCentres(std::vector<Triangle> &triangles, Mesh &onlyMesh, int longestAxis)
 {
     std::sort(triangles.begin(), triangles.end(),
@@ -60,6 +88,16 @@ void sortTrianglesByCentres(std::vector<Triangle> &triangles, Mesh &onlyMesh, in
               });
 }
 
+/**
+ * Get a list of vertices from triangles. 
+ * 
+ * Because triangles store indices for their vertices, 
+ * getting the vertices of a mesh defined only by triangles is annoying.
+ * 
+ * @param &vertices std::vector reference to vertices
+ * @param &triangles std::vector reference to triangles
+ * @param onlyMesh Mesh needed to retrieve all the vertices of the scene (should maybe be a reference?)
+ */
 void getVerticesFromTriangles(std::vector<Vertex> &vertices, std::vector<Triangle> &triangles, Mesh onlyMesh)
 {
     for (Triangle t : triangles)
@@ -70,10 +108,21 @@ void getVerticesFromTriangles(std::vector<Vertex> &vertices, std::vector<Triangl
     }
 }
 
+/**
+ * Split meshes into two groups for a node with multiple meshes. 
+ * 
+ * When a node contains multiple meshes, these meshes must be split
+ * into two groups based on their centres (see sortMeshesByCentres).
+ * 
+ * @param &leftChild std::vector reference of meshes to add to the left child of this node
+ * @param &rightChild std::vector reference of meshes to add to the right child of this node
+ * @param meshesCopy std::vector copy of the meshes from the parent
+ *  --> must be a copy because we will be sorting it
+ * @param longestAxis int determining the axis which will be split
+ */
 void getChildMeshesMultipleMeshes(std::vector<Mesh> &leftChild, std::vector<Mesh> &rightChild,
                                   std::vector<Mesh> meshesCopy, int longestAxis)
 {
-
     sortMeshesByCentres(meshesCopy, longestAxis);
 
     // split the meshes for the 2 child nodes
@@ -84,9 +133,21 @@ void getChildMeshesMultipleMeshes(std::vector<Mesh> &leftChild, std::vector<Mesh
     rightChild = right;
 }
 
+/**
+ * Split a mesh into two meshes for a node with a single mesh. 
+ *
+ * When a node contains a single mesh, this mesh must be split into two new
+ * meshes by sorting and splitting the meshe's triangles. 
+ *
+ * @param &leftChild std::vector reference of the mesh to add to the left child of this node
+ * @param &rightChild std::vector reference of the mesh to add to the right child of this node
+ * @param &onlyMesh reference to the parent mesh
+ * @param longestAxis int determining the axis which will be split
+ */
 void getChildMeshesOneMesh(std::vector<Mesh> &leftChild, std::vector<Mesh> &rightChild, Mesh &onlyMesh, int longestAxis)
 {
-    std::vector<Triangle> triangles = onlyMesh.triangles; // copy of the triangles
+    // COPY of the triangles - we will be sorting them in sortTrianglesByCentres
+    std::vector<Triangle> triangles = onlyMesh.triangles;
     std::vector<Vertex> &allVertices = onlyMesh.vertices;
     sortTrianglesByCentres(triangles, onlyMesh, longestAxis);
 
@@ -95,33 +156,50 @@ void getChildMeshesOneMesh(std::vector<Mesh> &leftChild, std::vector<Mesh> &righ
     std::vector<Triangle> leftTriangles(triangles.begin(), triangles.begin() + triangles.size() / 2);
     std::vector<Triangle> rightTriangles(triangles.begin() + triangles.size() / 2, triangles.end());
 
+    // create meshes from the triangles that were split and append them to the vector references
     leftChild.push_back(Mesh{allVertices, leftTriangles, onlyMesh.material});
     rightChild.push_back(Mesh{allVertices, rightTriangles, onlyMesh.material});
 }
 
+/**
+ * Give the maximum number of levels of the bvh tree.
+ * 
+ * @return int number of levels
+ */
 int BoundingVolumeHierarchy::numLevels() const
 {
     return 10;
 }
 
+/**
+ * Create a bounding box from meshes. 
+ * 
+ * Traverse all the meshes, all their triangles and the three vertices of each triangle
+ * to determine the min and max values for each coordinate.
+ * 
+ * @param &meshes std::vector reference to the meshes of a node
+ * @return an AABB for the inputted meshes
+ */
 AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes)
 {
-
+    // the vertex of the first triangle of the first mesh
     float firstTriangleVertex = meshes[0].triangles[0].x;
-    //                                  modify vvvvvv if it does not work!!!
-    float max_x = meshes[0].vertices[firstTriangleVertex].p.x;
-    float max_y = meshes[0].vertices[firstTriangleVertex].p.y;
-    float max_z = meshes[0].vertices[firstTriangleVertex].p.z;
 
-    float min_x = meshes[0].vertices[firstTriangleVertex].p.x;
-    float min_y = meshes[0].vertices[firstTriangleVertex].p.y;
-    float min_z = meshes[0].vertices[firstTriangleVertex].p.z;
+    // min and max values for each coordinate will
+    // initially be the coordinates of the first point
+    float max_x = meshes[0].vertices[firstTriangleVertex].p.x;
+    float min_x = max_x;
+    float max_y = meshes[0].vertices[firstTriangleVertex].p.y;
+    float min_y = max_y;
+    float max_z = meshes[0].vertices[firstTriangleVertex].p.z;
+    float min_z = max_z;
 
     for (Mesh mesh : meshes)
     {
         std::vector<Triangle> &meshTriangles = mesh.triangles;
         for (Triangle t : meshTriangles)
         {
+            // traverse the three vertices of a triangle
             for (int i = 0; i < 3; i++)
             {
                 Vertex current = mesh.vertices[(i == 0) ? t.x : ((i == 1) ? t.y : t.z)];
@@ -139,6 +217,16 @@ AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes)
     return AxisAlignedBox{glm::vec3{min_x, min_y, min_z}, glm::vec3{max_x, max_y, max_z}};
 }
 
+/**
+ * Create two subnodes for this node iff it is not a leaf.
+ * 
+ * The function differentiates between a node with a single mesh
+ * and a node with multiple meshes to be able to split the meshes
+ * and triangles accordingly.
+ * 
+ * @param &node reference to a node from which we are getting
+ * AND to which we are adding the children
+ */
 void BoundingVolumeHierarchy::getSubNodes(Node &node)
 {
     if (node.meshes.size() == 1)
@@ -149,6 +237,9 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node)
             return;
         }
     }
+
+    // determine the longest axis by which we will be splitting
+    // by taking the bounding box from the parent node
     glm::vec3 mins = node.AABB.lower;
     glm::vec3 maxs = node.AABB.upper;
     float x = maxs.x - mins.x;
@@ -157,14 +248,10 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node)
     int longestAxis = (x > y) ? ((x > z) ? 0 : 2) : ((y > z) ? 1 : 2);
 
     // --- TODO List --- //
-    // we want to sort the triangles based on their centers to get the median triangle --> done
-    // after that, devide the vector of triangles into two vectors --> done
-    // fill createTree method to construct tree of those nodes.
-    // make node a referance. --> done
-    // implement dividing the node when it contains multiple meshes
-    // create the two subnodes in getSubNodes (this function)
     // check the passing by value/reference
-
+    
+    // Create the fields that will be passed by reference to
+    // and modified by other functions
     std::vector<Mesh> leftChild;
     std::vector<Mesh> rightChild;
     AxisAlignedBox AABB_left;
@@ -177,6 +264,8 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node)
         // divide the meshes into groups
         //std::cout << node.meshes.size() << std::endl;
         //std::cout << right.size() << " " << rightChild.size() << std::endl;
+
+        // leftChild and rightChild are passed by reference
         getChildMeshesMultipleMeshes(leftChild, rightChild, node.meshes, longestAxis);
         //std::cout << node.meshes.size() << " " << leftChild.size() << " " << rightChild.size() << std::endl;
     }
@@ -184,8 +273,8 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node)
     {
         //std::cout << "hi " << std::endl;
 
+        // leftChild, rightChild and onlyMesh are all passed by reference
         Mesh onlyMesh = node.meshes[0];
-        // onlyMesh, leftChild and rightChild are all passed by reference
         getChildMeshesOneMesh(leftChild, rightChild, onlyMesh, longestAxis);
     }
 
@@ -202,8 +291,16 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node)
     node.subTree = children;
 }
 
-// recursive function that will create the whole tree
-// this method will get a node and create/return its subtrees
+/**
+ * Recursive function creating the whole tree. 
+ * 
+ * In one call, the function will add the node to the vector of nodes
+ * belonging to this class, get the subnodes of this node and call itself
+ * for the two children created (iff it is not a leaf) 
+ * --> in the foreach loop, the node must be a reference!!
+ * 
+ * @param &node reference to a node from an incomplete tree
+ */
 void BoundingVolumeHierarchy::createTree(Node &node)
 {
 
@@ -215,9 +312,9 @@ void BoundingVolumeHierarchy::createTree(Node &node)
     }
     else
     {
-        // make the recursive call
         getSubNodes(node);
 
+        // make the recursive call
         for (Node subNode : node.subTree)
         {
             createTree(subNode);
@@ -225,6 +322,14 @@ void BoundingVolumeHierarchy::createTree(Node &node)
     }
 }
 
+/**
+ * !Not used! Get the bounding box of the root node. 
+ * 
+ * In other words, get the bounding box that will contain all the triangles of this scene.
+ * 
+ * @param &meshes std::vector reference to all meshes in the scene
+ * @return AABB AxisAlignedBox containing all the triangles
+ */
 AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes)
 {
     float max_x = meshes[0].vertices[0].p.x;
@@ -236,9 +341,9 @@ AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes)
 
     for (Mesh mesh : meshes)
     {
-        std::vector<Vertex> vertecies = mesh.vertices;
+        std::vector<Vertex> vertices = mesh.vertices;
 
-        for (Vertex vertex : vertecies)
+        for (Vertex vertex : vertices)
         {
             glm::vec3 p = vertex.p;
             min_x = (p.x < min_x) ? p.x : min_x;
@@ -253,9 +358,17 @@ AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes)
     return AxisAlignedBox{glm::vec3{min_x, min_y, min_z}, glm::vec3{max_x, max_y, max_z}};
 }
 
+/**
+ * !Not used and probably not working! Recursively get all bounding boxes at a certain level (e.g. 0 = only the root AABB). 
+ * 
+ * Breadth-first search through a tree.
+ * 
+ * @param &node reference to a node in the tree
+ * @param &result reference to the resulting std::vector of AABBs
+ * @param level int of the level we want to retrieve
+ */
 void getNodesAtLevel(Node &node, std::vector<AxisAlignedBox> &result, int level)
 {
-
     if (node.level == level)
     {
         result.push_back(node.AABB);
@@ -316,7 +429,17 @@ void BoundingVolumeHierarchy::debugDraw(int level)
     //drawAABB(aabb, DrawMode::Filled, glm::vec3(0.05f, 1.0f, 0.05f), 1);
 }
 
-bool intersectRecursive(Ray& ray, HitInfo& hitInfo, const Node& current) {
+/**
+ * Recursively traverse the tree and see if a given ray intersects the structure or not. 
+ * 
+ * Should be split into two functions for a better readability!!!
+ * 
+ * @param &ray reference to the currently shot ray
+ * @param &hitInfo reference to HitInfo
+ * @param &current reference to the node we are currently at
+ * @return intersected bool stating whether some triangle was intersected or not
+ */
+bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
     AxisAlignedBox AABB = current.AABB;
 
     float originalT = ray.t;
@@ -369,6 +492,17 @@ bool intersectRecursive(Ray& ray, HitInfo& hitInfo, const Node& current) {
     }
 }
 
+/**
+ * Initial method of a ray-triangle intersection using a data structure. 
+ * 
+ * Check whether the root AABB was intersected and if that is the case, 
+ * call the recursive intersection function.
+ * 
+ * @param &ray reference to the currently shot ray
+ * @param &hitInfo reference to HitInfo
+ * @param &root reference to the root node
+ * @return intersected bool stating whether the root AABB was intersected or not
+ */
 bool intersectDataStructure (Ray &ray, HitInfo &hitInfo, const Node &root) {
     AxisAlignedBox AABB = root.AABB;
 
@@ -410,28 +544,28 @@ bool BoundingVolumeHierarchy::intersect(Ray &ray, HitInfo &hitInfo) const
     return hit;
 }
 
-// void _max_(float x, float y, float z, bool (&arr)[3])
-// {
-//     if (x < y)
-//     {
-//         if (y > z)
-//         {
-//             arr[1] = true;
-//         }
-//         else
-//         {
-//             arr[2] = true;
-//         }
-//     }
-//     else
-//     {
-//         if (x > z)
-//         {
-//             arr[0] = true;
-//         }
-//         else
-//         {
-//             arr[2] = true;
-//         }
-//     }
-// }
+ //void _max_(float x, float y, float z, bool (&arr)[3])
+ //{
+ //    if (x < y)
+ //    {
+ //        if (y > z)
+ //        {
+ //            arr[1] = true;
+ //        }
+ //        else
+ //        {
+ //            arr[2] = true;
+ //        }
+ //    }
+ //    else
+ //    {
+ //        if (x > z)
+ //        {
+ //            arr[0] = true;
+ //        }
+ //        else
+ //        {
+ //            arr[2] = true;
+ //        }
+ //    }
+ //}
