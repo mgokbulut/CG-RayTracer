@@ -374,7 +374,7 @@ void getNodesAtLevel(Node &node, std::vector<AxisAlignedBox> &result, int level)
         return;
     }
 
-    for (Node child : node.subTree)
+    for (Node &child : node.subTree)
     {
         getNodesAtLevel(child, result, level);
     }
@@ -394,6 +394,13 @@ void BoundingVolumeHierarchy::debugDraw(int level)
     //AxisAlignedBox aabb{glm::vec3(-0.05f), glm::vec3(0.05f, 1.05f, 1.05f)};
     // AxisAlignedBox aabb = nodes[nodes.size() - 1].AABB;
     glm::vec3 color = glm::vec3(0.05f, 1.0f, 0.05f);
+
+    std::vector<AxisAlignedBox> result;
+    getNodesAtLevel(root, result, level);
+
+    for (AxisAlignedBox AABB : result) {
+        drawAABB(AABB, DrawMode::Filled, color, 0.8f);
+    }
     //glm::vec3(1.0f, 1.0f, 1.0f);
     // for (Node node : nodes)
     // {
