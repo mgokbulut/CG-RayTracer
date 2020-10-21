@@ -24,8 +24,10 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
     std::vector<Mesh> meshes = pScene->meshes;
     AxisAlignedBox rootAABB = getBoundingBoxFromMeshes(meshes);
 
+    bool isLeaf = numLevels() - 1 == 0 || (meshes.size() == 1 && meshes[0].triangles.size() == 1);
+
     root = Node {
-        (numLevels() == 0),
+        isLeaf,
         0,
         rootAABB,
         {},
@@ -231,15 +233,6 @@ AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes)
  */
 void BoundingVolumeHierarchy::getSubNodes(Node &node)
 {
-    if (node.meshes.size() == 1)
-    {
-        if (node.meshes[0].triangles.size() == 1)
-        {
-            node.isLeaf = true;
-            return;
-        }
-    }
-
     // determine the longest axis by which we will be splitting
     // by taking the bounding box from the parent node
     glm::vec3 mins = node.AABB.lower;
@@ -282,11 +275,13 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node)
     AABB_right = getBoundingBoxFromMeshes(rightChild);
     Node leftNode, rightNode;
 
-    bool areLeaf = (node.level + 1 == numLevels());
+    bool areLeaf = (node.level + 1 == numLevels() - 1);
+    bool leftIsLeaf = areLeaf || (leftChild.size() == 1 && leftChild[0].triangles.size() == 1);
+    bool rightIsLeaf = areLeaf || (rightChild.size() == 1 && rightChild[0].triangles.size() == 1);
 
     std::vector<Node> children;
-    children.push_back(Node{areLeaf, node.level + 1, AABB_left, {}, leftChild});
-    children.push_back(Node{areLeaf, node.level + 1, AABB_right, {}, rightChild});
+    children.push_back(Node{leftIsLeaf, node.level + 1, AABB_left, {}, leftChild});
+    children.push_back(Node{rightIsLeaf, node.level + 1, AABB_right, {}, rightChild});
     node.subTree = children;
 }
 
@@ -446,6 +441,7 @@ bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
 
     float originalT = ray.t; // CANNOT be a reference!!
     if (current.isLeaf) {
+        bool hit = false;
         for (const auto& mesh : current.meshes)
         {
             for (const auto& tri : mesh.triangles)
@@ -456,11 +452,11 @@ bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
                 if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo))
                 {
                     hitInfo.material = mesh.material;
-                    return true;
+                    hit = true;
                 }
             }
         }
-        return false;
+        return hit;
     }
 
     std::vector<float> t;
