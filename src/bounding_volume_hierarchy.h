@@ -18,7 +18,8 @@ class BoundingVolumeHierarchy
 private:
     Scene *m_pScene;
 
-    std::vector<Node> nodes;
+    //std::vector<Node> nodes;
+    Node root;
     void getSubNodes(Node &node);
     void createTree(Node &node);
 

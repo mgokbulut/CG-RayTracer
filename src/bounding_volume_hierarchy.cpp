@@ -17,10 +17,14 @@ AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes);
 BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
     : m_pScene(pScene)
 {
+    //--- TODO ---//
+    // implement the division criteria with SAH+binning (in case)
+    // 
+    
     std::vector<Mesh> meshes = pScene->meshes;
     AxisAlignedBox rootAABB = getBoundingBoxFromMeshes(meshes);
 
-    Node root{
+    root = Node {
         (numLevels() == 0),
         0,
         rootAABB,
@@ -298,8 +302,6 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node)
  */
 void BoundingVolumeHierarchy::createTree(Node &node)
 {
-
-    nodes.push_back(node);
     // ending condition is when the node is leaf.
     if (node.isLeaf)
     {
@@ -310,7 +312,7 @@ void BoundingVolumeHierarchy::createTree(Node &node)
         getSubNodes(node);
 
         // make the recursive call
-        for (Node subNode : node.subTree)
+        for (Node &subNode : node.subTree)
         {
             createTree(subNode);
         }
@@ -409,14 +411,14 @@ void BoundingVolumeHierarchy::debugDraw(int level)
     //     drawAABB(AABB, DrawMode::Filled, color, 1);
     // }
     //int howManyTimes = 0;
-    for (Node &n : nodes)
-    {
-        if (n.level == level)
-        {
-            //howManyTimes++;
-            drawAABB(n.AABB, DrawMode::Filled, color, 0.9);
-        }
-    }
+    //for (Node &n : nodes)
+    //{
+    //    if (n.level == level)
+    //    {
+    //        //howManyTimes++;
+    //        drawAABB(n.AABB, DrawMode::Filled, color, 0.9);
+    //    }
+    //}
     //std::cout << howManyTimes << std::endl;
     //drawAABB(aabb, DrawMode::Wireframe);
     //drawAABB(aabb, DrawMode::Filled, glm::vec3(0.05f, 1.0f, 0.05f), 1);
@@ -531,7 +533,7 @@ bool BoundingVolumeHierarchy::intersect(Ray &ray, HitInfo &hitInfo) const
     //    }
     //}
     // Intersect with spheres.
-    hit = intersectDataStructure(ray, hitInfo, nodes[0]);
+    hit = intersectDataStructure(ray, hitInfo, root);
     for (const auto &sphere : m_pScene->spheres)
         hit |= intersectRayWithShape(sphere, ray, hitInfo);
     return hit;
