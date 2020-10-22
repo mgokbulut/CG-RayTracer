@@ -484,7 +484,7 @@ bool intersectLeaf(Ray& ray, HitInfo& hitInfo, const Node& current)
     return hit;
 }
 
-bool boxesOverlap(AxisAlignedBox& box1, AxisAlignedBox& box2) {
+bool boxesOverlap(const AxisAlignedBox& box1, const AxisAlignedBox& box2) {
     //Determining overlap in the x plane
     bool con1 = (box1.upper.x > box2.lower.x);
     bool con2 = (box1.lower.x < box2.upper.x);
@@ -514,7 +514,7 @@ bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
     AxisAlignedBox AABB = current.AABB;
 
     if (current.isLeaf) {
-        intersectLeaf(ray, hitInfo, current);
+        return intersectLeaf(ray, hitInfo, current);
     }
 
     float originalT = ray.t; // CANNOT be a reference!!
@@ -531,31 +531,53 @@ bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
     tRight = ray.t;
     ray.t = originalT;
 
-    if (tLeft < 0 && tRight < 0) {
+    if (tLeft < 0 && tRight < 0) { // neither of the children was intersected
         return false;
     }
-    else if (tLeft < 0) {
+    else if (tLeft < 0) { // only the right child was intersected
         return intersectRecursive(ray, hitInfo, rightChild);
     }
-    else if (tRight < 0) {
+    else if (tRight < 0) { // only the left child was intersected
         return intersectRecursive(ray, hitInfo, leftChild);
     }
-    else if (tLeft < tRight) {
-        if (intersectRecursive(ray, hitInfo, leftChild)) {
-            return true;
+    else { // both boxes were intersected
+        // the boxes are overlapping
+        if (boxesOverlap(leftChild.AABB, rightChild.AABB)) {
+            bool hit = intersectRecursive(ray, hitInfo, rightChild);
+            return intersectRecursive(ray, hitInfo, leftChild) || hit;
         }
-        return intersectRecursive(ray, hitInfo, rightChild);
-    }
-    else if (tRight < tLeft) {
-        if (intersectRecursive(ray, hitInfo, rightChild)) {
-            return true;
+
+        if (tLeft < tRight) { // the left child was intersected first
+            if (intersectRecursive(ray, hitInfo, leftChild)) {
+                return true;
+            }
+            return intersectRecursive(ray, hitInfo, rightChild);
         }
-        return intersectRecursive(ray, hitInfo, leftChild);
+        else { // the right child was intersected first
+            if (intersectRecursive(ray, hitInfo, rightChild)) {
+                return true;
+            }
+            return intersectRecursive(ray, hitInfo, leftChild);
+        }
     }
-    else {
-        bool hit = intersectRecursive(ray, hitInfo, rightChild);
-        return hit || intersectRecursive(ray, hitInfo, leftChild);
-    }
+
+
+    //else if (tLeft < tRight) {
+    //    if (intersectRecursive(ray, hitInfo, leftChild)) {
+    //        return true;
+    //    }
+    //    return intersectRecursive(ray, hitInfo, rightChild);
+    //}
+    //else if (tRight < tLeft) {
+    //    if (intersectRecursive(ray, hitInfo, rightChild)) {
+    //        return true;
+    //    }
+    //    return intersectRecursive(ray, hitInfo, leftChild);
+    //}
+    //else {
+    //    bool hit = intersectRecursive(ray, hitInfo, rightChild);
+    //    return hit || intersectRecursive(ray, hitInfo, leftChild);
+    //}
 
 
 
