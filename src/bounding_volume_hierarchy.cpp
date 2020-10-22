@@ -1,9 +1,31 @@
 #include "bounding_volume_hierarchy.h"
 #include "draw.h"
+#include <queue>
 
 AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes);
 void sortTrianglesByCentres(std::vector<Triangle> &triangles, Mesh &onlyMesh, int longestAxis);
 AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes);
+
+void printTree(Node &root) {
+    std::queue<Node> q;
+    q.push(root);
+    int level = 0;
+    while (!q.empty()) {
+        Node &current = q.front();
+        if (!current.isLeaf) {
+            for (Node &child : current.subTree) {
+                q.push(child);
+            }
+        }
+
+        if (current.level != level) {
+            std::cout << std::endl;
+            level++;
+        }
+        std::cout << "(" << current.isLeaf << ") ";
+        q.pop();
+    }
+}
 
 /**
  * Constructor for the bvh. 
@@ -34,6 +56,8 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
         meshes,
     };
     createTree(root);
+    std::cout << "\n\n";
+    printTree(root);
 }
 
 /**
@@ -357,11 +381,11 @@ AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes)
  * @param &result std::vector reference to the resulting vector of AABBs
  * @param level int of the level we want to retrieve
  */
-void getNodesAtLevel(Node &node, std::vector<AxisAlignedBox> &result, int level)
+void getNodesAtLevel(Node &node, std::vector<Node> &result, int level)
 {
     if (node.level == level)
     {
-        result.push_back(node.AABB);
+        result.push_back(node);
         return;
     }
     if (node.isLeaf)
@@ -388,13 +412,19 @@ void BoundingVolumeHierarchy::debugDraw(int level)
     // Draw the AABB as a (white) wireframe box.
     //AxisAlignedBox aabb{glm::vec3(-0.05f), glm::vec3(0.05f, 1.05f, 1.05f)};
     // AxisAlignedBox aabb = nodes[nodes.size() - 1].AABB;
-    glm::vec3 color = glm::vec3(0.05f, 1.0f, 0.05f);
+    glm::vec3 green = glm::vec3(0.05f, 1.0f, 0.05f);
+    glm::vec3 blue = glm::vec3(0.05f, 0.05f, 1.0f);
 
-    std::vector<AxisAlignedBox> result;
+    std::vector<Node> result;
     getNodesAtLevel(root, result, level);
 
-    for (AxisAlignedBox AABB : result) {
-        drawAABB(AABB, DrawMode::Filled, color, 0.8f);
+    for (Node n : result) {
+        if (n.isLeaf) {
+            drawAABB(n.AABB, DrawMode::Filled, blue, 0.8f);
+        }
+        else {
+            drawAABB(n.AABB, DrawMode::Filled, green, 0.8f);
+        }
     }
     //glm::vec3(1.0f, 1.0f, 1.0f);
     // for (Node node : nodes)
@@ -427,6 +457,50 @@ void BoundingVolumeHierarchy::debugDraw(int level)
 }
 
 /**
+ * Handles when the ray hits a leaf node of bvh.
+ *
+ * @param &ray reference to the currently shot ray
+ * @param &hitInfo reference to HitInfo
+ * @param &current reference to the node we are currently at
+ * @return intersected bool stating whether some triangle was intersected or not
+ */
+bool intersectLeaf(Ray& ray, HitInfo& hitInfo, const Node& current)
+{
+    bool hit = false;
+    for (const auto& mesh : current.meshes)
+    {
+        for (const auto& tri : mesh.triangles)
+        {
+            const auto v0 = mesh.vertices[tri[0]];
+            const auto v1 = mesh.vertices[tri[1]];
+            const auto v2 = mesh.vertices[tri[2]];
+            if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo))
+            {
+                hitInfo.material = mesh.material;
+                hit = true;
+            }
+        }
+    }
+    return hit;
+}
+
+bool boxesOverlap(AxisAlignedBox& box1, AxisAlignedBox& box2) {
+    //Determining overlap in the x plane
+    bool con1 = (box1.upper.x > box2.lower.x);
+    bool con2 = (box1.lower.x < box2.upper.x);
+
+    //Determining overlap in the y plane 
+    bool con3 = (box1.upper.y > box2.lower.y);
+    bool con4 = (box1.lower.y < box2.lower.y);
+
+    //Determining overlap in the z plane 
+    bool con5 = (box1.upper.z > box2.lower.z);
+    bool con6 = (box1.lower.z < box2.upper.z);
+
+    return (con1 || con2) && (con3 || con4) && (con5 || con6);
+}
+
+/**
  * Recursively traverse the tree and see if a given ray intersects the structure or not. 
  * 
  * Should be split into two functions for a better readability!!!
@@ -439,7 +513,113 @@ void BoundingVolumeHierarchy::debugDraw(int level)
 bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
     AxisAlignedBox AABB = current.AABB;
 
+    if (current.isLeaf) {
+        intersectLeaf(ray, hitInfo, current);
+    }
+
     float originalT = ray.t; // CANNOT be a reference!!
+
+    float tLeft = -1.0f;
+    const Node &leftChild = current.subTree[0];
+    intersectRayWithShape(leftChild.AABB, ray);
+    tLeft = ray.t;
+    ray.t = originalT;
+
+    float tRight = -1.0f;
+    const Node &rightChild = current.subTree[1];
+    intersectRayWithShape(rightChild.AABB, ray);
+    tRight = ray.t;
+    ray.t = originalT;
+
+    if (tLeft < 0 && tRight < 0) {
+        return false;
+    }
+    else if (tLeft < 0) {
+        return intersectRecursive(ray, hitInfo, rightChild);
+    }
+    else if (tRight < 0) {
+        return intersectRecursive(ray, hitInfo, leftChild);
+    }
+    else if (tLeft < tRight) {
+        if (intersectRecursive(ray, hitInfo, leftChild)) {
+            return true;
+        }
+        return intersectRecursive(ray, hitInfo, rightChild);
+    }
+    else if (tRight < tLeft) {
+        if (intersectRecursive(ray, hitInfo, rightChild)) {
+            return true;
+        }
+        return intersectRecursive(ray, hitInfo, leftChild);
+    }
+    else {
+        bool hit = intersectRecursive(ray, hitInfo, rightChild);
+        return hit || intersectRecursive(ray, hitInfo, leftChild);
+    }
+
+
+
+    //for (const Node& child : current.subTree) {
+    //    if (intersectRayWithShape(child.AABB, ray)) {
+    //        t.push_back(ray.t);
+    //        intersected.push_back(child);
+    //        ray.t = originalT;
+    //    }
+    //}
+
+    //if (t.size() == 0) {
+    //    return false;
+    //}
+    //else if (t.size() == 1) {
+    //    return intersectRecursive(ray, hitInfo, intersected[0]);
+    //}
+    //else if (t[0] < t[1]) {
+    //    if (intersectRecursive(ray, hitInfo, intersected[0])) {
+    //        return true;
+    //    }
+    //    return intersectRecursive(ray, hitInfo, intersected[1]);
+    //}
+    //else {
+    //    if (intersectRecursive(ray, hitInfo, intersected[1])) {
+    //        return true;
+    //    }
+    //    return intersectRecursive(ray, hitInfo, intersected[0]);
+    //}
+}
+
+bool intersectLevel(Ray& ray, HitInfo &hitInfo, const Node& current, int level) {
+    if (current.level == level) {
+        if (current.isLeaf) {
+            bool hit = false;
+            for (const auto& mesh : current.meshes)
+            {
+                for (const auto& tri : mesh.triangles)
+                {
+                    const auto v0 = mesh.vertices[tri[0]];
+                    const auto v1 = mesh.vertices[tri[1]];
+                    const auto v2 = mesh.vertices[tri[2]];
+                    if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo))
+                    {
+                        hitInfo.material = mesh.material;
+                        hit = true;
+                    }
+                }
+            }
+            return hit;
+        }
+        return intersectRayWithShape(current.AABB, ray);
+    }
+
+    bool hit = false;
+
+    for (Node child : current.subTree) {
+        hit |= intersectLevel(ray, hitInfo, child, level);
+    }
+
+    return hit;
+}
+
+bool intersectDirty(Ray& ray, HitInfo& hitInfo, const Node& current) {
     if (current.isLeaf) {
         bool hit = false;
         for (const auto& mesh : current.meshes)
@@ -459,35 +639,12 @@ bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
         return hit;
     }
 
-    std::vector<float> t;
-    std::vector<Node> intersected;
-
-    for (const Node& child : current.subTree) {
-        if (intersectRayWithShape(child.AABB, ray)) {
-            t.push_back(ray.t);
-            intersected.push_back(child);
-            ray.t = originalT;
-        }
+    bool hit = false;
+    for (Node child : current.subTree) {
+        hit |= intersectDirty(ray, hitInfo, child);
     }
 
-    if (t.size() == 0) {
-        return false;
-    }
-    else if (t.size() == 1) {
-        return intersectRecursive(ray, hitInfo, intersected[0]);
-    }
-    else if (t[0] < t[1]) {
-        if (intersectRecursive(ray, hitInfo, intersected[0])) {
-            return true;
-        }
-        return intersectRecursive(ray, hitInfo, intersected[1]);
-    }
-    else {
-        if (intersectRecursive(ray, hitInfo, intersected[1])) {
-            return true;
-        }
-        return intersectRecursive(ray, hitInfo, intersected[0]);
-    }
+    return hit;
 }
 
 /**
@@ -519,6 +676,7 @@ bool intersectDataStructure (Ray &ray, HitInfo &hitInfo, const Node &root) {
 // file you like, including bounding_volume_hierarchy.h .
 bool BoundingVolumeHierarchy::intersect(Ray &ray, HitInfo &hitInfo) const
 {
+    // THE BVH DATA STRUCTURE HAS BEEN TESTED TO BE CORRECT
     bool hit = false;
     //// Intersect with all triangles of all meshes.
     //for (const auto &mesh : m_pScene->meshes)
@@ -537,6 +695,8 @@ bool BoundingVolumeHierarchy::intersect(Ray &ray, HitInfo &hitInfo) const
     //}
     // Intersect with spheres.
     hit = intersectDataStructure(ray, hitInfo, root);
+    //hit = intersectLevel(ray, hitInfo, root, 7);
+    //hit = intersectDirty(ray, hitInfo, root);
     for (const auto &sphere : m_pScene->spheres)
         hit |= intersectRayWithShape(sphere, ray, hitInfo);
     return hit;
