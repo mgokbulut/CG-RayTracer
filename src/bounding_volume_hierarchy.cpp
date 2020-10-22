@@ -543,8 +543,20 @@ bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
     else { // both boxes were intersected
         // the boxes are overlapping
         if (boxesOverlap(leftChild.AABB, rightChild.AABB)) {
-            bool hit = intersectRecursive(ray, hitInfo, rightChild);
-            return intersectRecursive(ray, hitInfo, leftChild) || hit;
+            if (tLeft < tRight) {
+                bool hit = intersectRecursive(ray, hitInfo, leftChild);
+                if (ray.t < tRight) {
+                    return true;
+                }
+                return intersectRecursive(ray, hitInfo, rightChild) || hit;
+            }
+            else {
+                bool hit = intersectRecursive(ray, hitInfo, rightChild);
+                if (ray.t < tLeft) {
+                    return true;
+                }
+                return intersectRecursive(ray, hitInfo, leftChild) || hit;
+            }
         }
 
         if (tLeft < tRight) { // the left child was intersected first
