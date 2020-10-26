@@ -30,6 +30,7 @@ constexpr glm::ivec2 windowResolution{800, 800};
 const std::filesystem::path dataPath{DATA_DIR};
 const std::filesystem::path outputPath{OUTPUT_DIR};
 
+bool bloom = false;
 enum class ViewMode
 {
     Rasterization = 0,
@@ -338,72 +339,51 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
             const Ray cameraRay = camera.generateRay(normalizedPixelPos);
             glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
             screen.setPixel(x, y, color);
-            if (color.x + color.y + color.z > 0.95)
-                matrixColorsScreen.at(y*windowResolution.x + x) = getFinalColor(scene, bvh, cameraRay);
+            if (color.x + color.y + color.z > 1)
+                matrixColorsScreen.at(y * windowResolution.x + x) = getFinalColor(scene, bvh, cameraRay);
+            else
+                matrixColorsScreen.at(y * windowResolution.x + x) = glm::vec3((0));
         }
     }
-    //mean over pixels 3x3
+    //mean over pixels 20x20
     //https://developer.nvidia.com/gpugems/gpugems/part-iv-image-processing/chapter-21-real-time-glow
+    int counter = 1;
     for (int y = 0; y < windowResolution.y; y++)
     {
         for (int x = 0; x != windowResolution.x; x++)
         {
+            counter = 1;
+            for (int i = -10; i < 11; i++)
+            {
+                if (y + i < 0 || y + i > windowResolution.y - 1)
+                    continue;
+                else
+                {
+                    for (int j = -10; j < 11; j++)
+                    {
+                        if (i == 0 && j == 0)
+                            continue;
+                        if (x + j < 0 || x + j > windowResolution.x - 1)
+                            continue;
+                        else {
+                            matrixColorsScreen.at((y * windowResolution.x) + x) += matrixColorsScreen.at(((y + i) * windowResolution.x) + (x + j));
+                            counter++;
+                        }
 
-            if (x == 0 && y == 0)
-                matrixColorsScreen.at(y * windowResolution.x + x) = glm::vec3((0)) + glm::vec3((0)) + glm::vec3((0)) +
-                matrixColorsScreen.at(y * windowResolution.x + x) + matrixColorsScreen.at(y * windowResolution.x + x + 1) + matrixColorsScreen.at((y + 1) * windowResolution.x + x) +
-                matrixColorsScreen.at((y + 1) * windowResolution.x + x + 1) + glm::vec3((0)) + glm::vec3((0));
-            
-            else if (x == windowResolution.x - 1 && y == windowResolution.y - 1 )
-                matrixColorsScreen.at(y * windowResolution.x + x) = matrixColorsScreen.at((y - 1) * windowResolution.x + x - 1) + matrixColorsScreen.at(y * windowResolution.x + x - 1) + matrixColorsScreen.at(y * windowResolution.x - windowResolution.x + x) +
-                matrixColorsScreen.at(y * windowResolution.x + x) + glm::vec3((0)) + glm::vec3((0)) +
-                glm::vec3((0)) + glm::vec3((0)) + glm::vec3((0));
+                    }
+                }
+                
+            }
+            matrixColorsScreen.at((y * windowResolution.x) + x) = glm::vec3(matrixColorsScreen.at((y * windowResolution.x) + x).x / counter, matrixColorsScreen.at((y * windowResolution.x) + x).y / counter, matrixColorsScreen.at((y * windowResolution.x) + x).z / counter);
 
-            else if (x == windowResolution.x - 1 && y == 0)
-                matrixColorsScreen.at(y * windowResolution.x + x) = glm::vec3((0)) + matrixColorsScreen.at(y * windowResolution.x + x - 1) + glm::vec3((0)) +
-                matrixColorsScreen.at(y * windowResolution.x + x) + glm::vec3((0)) + matrixColorsScreen.at((y + 1) * windowResolution.x + x) +
-                glm::vec3((0)) + glm::vec3((0)) + matrixColorsScreen.at((y + 1) * windowResolution.x + x - 1);
-
-            else if (x == 0 && y == windowResolution.y - 1)
-                matrixColorsScreen.at(y * windowResolution.x + x) = glm::vec3((0)) + glm::vec3((0)) + matrixColorsScreen.at(y * windowResolution.x - windowResolution.x + x) +
-                matrixColorsScreen.at(y * windowResolution.x + x) + matrixColorsScreen.at(y * windowResolution.x + x + 1) + glm::vec3((0)) +
-                glm::vec3((0)) + matrixColorsScreen.at(y * windowResolution.x - windowResolution.x + x + 1) + glm::vec3((0));
-            
-            else if(x == windowResolution.x - 1)
-                matrixColorsScreen.at(y * windowResolution.x + x) = matrixColorsScreen.at((y - 1) * windowResolution.x + x - 1) + matrixColorsScreen.at(y * windowResolution.x + x - 1) + matrixColorsScreen.at(y * windowResolution.x - windowResolution.x + x) +
-                matrixColorsScreen.at(y * windowResolution.x + x) + glm::vec3((0)) + matrixColorsScreen.at((y + 1) * windowResolution.x + x) +
-                glm::vec3((0)) + glm::vec3((0)) + matrixColorsScreen.at((y + 1) * windowResolution.x + x - 1);
-
-            else if(y == windowResolution.y - 1)
-                matrixColorsScreen.at(y * windowResolution.x + x) = matrixColorsScreen.at((y - 1) * windowResolution.x + x - 1) + matrixColorsScreen.at(y * windowResolution.x + x - 1) + matrixColorsScreen.at(y * windowResolution.x - windowResolution.x + x) +
-                matrixColorsScreen.at(y * windowResolution.x + x) + matrixColorsScreen.at(y * windowResolution.x + x + 1) + glm::vec3((0)) +
-                glm::vec3((0)) + matrixColorsScreen.at(y * windowResolution.x - windowResolution.x + x + 1) + glm::vec3((0));
-
-            else if (x == 0)
-                matrixColorsScreen.at(y * windowResolution.x + x) = glm::vec3((0)) + glm::vec3((0)) + matrixColorsScreen.at(y  * windowResolution.x - windowResolution.x + x) +
-                matrixColorsScreen.at(y * windowResolution.x + x) + matrixColorsScreen.at(y * windowResolution.x + x + 1) + matrixColorsScreen.at((y + 1) * windowResolution.x + x) +
-                matrixColorsScreen.at((y + 1) * windowResolution.x + x + 1) + matrixColorsScreen.at((y  * windowResolution.x - windowResolution.x + x + 1)) + glm::vec3((0));
-            
-            else if (y == 0)
-                matrixColorsScreen.at(y * windowResolution.x + x) = glm::vec3((0)) + matrixColorsScreen.at(y * windowResolution.x + x - 1) + glm::vec3((0)) +
-                matrixColorsScreen.at(y * windowResolution.x + x) + matrixColorsScreen.at(y * windowResolution.x + x + 1) + matrixColorsScreen.at((y + 1) * windowResolution.x + x) +
-                matrixColorsScreen.at((y + 1) * windowResolution.x + x + 1) + glm::vec3((0)) + matrixColorsScreen.at((y + 1) * windowResolution.x + x - 1);
-
-            else
-                matrixColorsScreen.at(y * windowResolution.x + x) = matrixColorsScreen.at((y - 1) * windowResolution.x + x - 1) + matrixColorsScreen.at(y * windowResolution.x + x - 1) + matrixColorsScreen.at(y  * windowResolution.x - windowResolution.x + x) +
-                matrixColorsScreen.at(y * windowResolution.x + x) + matrixColorsScreen.at(y * windowResolution.x + x + 1) + matrixColorsScreen.at((y + 1) * windowResolution.x + x) +
-                matrixColorsScreen.at((y + 1) * windowResolution.x + x + 1) + matrixColorsScreen.at(y * windowResolution.x - windowResolution.x + x + 1) + matrixColorsScreen.at((y + 1) * windowResolution.x + x - 1);
-
-            matrixColorsScreen.at(y * windowResolution.x + x).x = matrixColorsScreen.at(y * windowResolution.x + x).x / 9;
-            matrixColorsScreen.at(y * windowResolution.x + x).y = matrixColorsScreen.at(y * windowResolution.x + x).y / 9;
-            matrixColorsScreen.at(y * windowResolution.x + x).z = matrixColorsScreen.at(y * windowResolution.x + x).z / 9;
+           
 
             const glm::vec2 normalizedPixelPos{
                 float(x) / windowResolution.x * 2.0f - 1.0f,
                 float(y) / windowResolution.y * 2.0f - 1.0f };
             const Ray cameraRay = camera.generateRay(normalizedPixelPos);
             glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
-            if(matrixColorsScreen.at((y * windowResolution.x) + x).x != 0 || matrixColorsScreen.at((y * windowResolution.x) + x).y != 0 || matrixColorsScreen.at((y * windowResolution.x) + x).z != 0)
+            if(bloom == true)
                 screen.setPixel(x, y, matrixColorsScreen.at((y * windowResolution.x) + x) + color);
 
         }
@@ -565,6 +545,11 @@ int main(int argc, char **argv)
                 scene.sphericalLight.erase(std::begin(scene.sphericalLight) + (selectedLight - scene.pointLights.size()));
             }
             selectedLight = 0;
+        }
+        
+        if (ImGui::Checkbox("Add bloom", &bloom)) 
+        {
+            bloom = true;
         }
 
         // Clear screen.
