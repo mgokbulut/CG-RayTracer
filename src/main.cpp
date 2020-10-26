@@ -31,6 +31,7 @@ const std::filesystem::path dataPath{DATA_DIR};
 const std::filesystem::path outputPath{OUTPUT_DIR};
 
 bool bloom = false;
+bool blur = false;
 enum class ViewMode
 {
     Rasterization = 0,
@@ -324,6 +325,7 @@ static void renderOpenGL(const Scene &scene, const Trackball &camera, int select
 static void renderRayTracing(const Scene &scene, const Trackball &camera, const BoundingVolumeHierarchy &bvh, Screen &screen)
 {
     std::vector<glm::vec3> matrixColorsScreen(windowResolution.x * windowResolution.y + 1);
+    std::vector<glm::vec3> matrixPixels(windowResolution.x * windowResolution.y + 1);
     
 #ifdef USE_OPENMP
 #pragma omp parallel for
@@ -339,6 +341,8 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
             const Ray cameraRay = camera.generateRay(normalizedPixelPos);
             glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
             screen.setPixel(x, y, color);
+            matrixPixels.at(y * windowResolution.x + x) = getFinalColor(scene, bvh, cameraRay);
+
             if (color.x + color.y + color.z > 1)
                 matrixColorsScreen.at(y * windowResolution.x + x) = getFinalColor(scene, bvh, cameraRay);
             else
@@ -388,7 +392,45 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
 
         }
     }
+    Trackball cameraNew = camera;
+    cameraNew.setLookAt(glm::vec3(0.13, 0, 0));
+    for (int y = 0; y < windowResolution.y; y++)
+    {
+        for (int x = 0; x != windowResolution.x; x++)
+        {
+            // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+            const glm::vec2 normalizedPixelPos{
+                float(x) / windowResolution.x * 2.0f - 1.0f,
+                float(y) / windowResolution.y * 2.0f - 1.0f };
+            const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+            glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+            
+            matrixPixels.at(y * windowResolution.x + x) +=  getFinalColor(scene, bvh, cameraRay);
+            if(blur == true)
+                screen.setPixel(x, y, glm::vec3(matrixPixels.at(y * windowResolution.x + x).x / 2, matrixPixels.at(y * windowResolution.x + x).y / 2, matrixPixels.at(y * windowResolution.x + x).z / 2));
+        }
+    }
 
+    Trackball cameraNew1 = camera;
+    cameraNew.setLookAt(glm::vec3(0.15, 0, 0));
+    for (int y = 0; y < windowResolution.y; y++)
+    {
+        for (int x = 0; x != windowResolution.x; x++)
+        {
+            // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+            const glm::vec2 normalizedPixelPos{
+                float(x) / windowResolution.x * 2.0f - 1.0f,
+                float(y) / windowResolution.y * 2.0f - 1.0f };
+            const Ray cameraRay = cameraNew1.generateRay(normalizedPixelPos);
+            glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+            matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+            if(blur == true)
+                screen.setPixel(x, y, glm::vec3(matrixPixels.at(y * windowResolution.x + x).x / 3, matrixPixels.at(y * windowResolution.x + x).y / 3, matrixPixels.at(y * windowResolution.x + x).z / 3));
+        }
+    }
+
+    
 }
 
 int main(int argc, char **argv)
@@ -550,6 +592,10 @@ int main(int argc, char **argv)
         if (ImGui::Checkbox("Add bloom", &bloom)) 
         {
             bloom = true;
+        }
+        if (ImGui::Checkbox("Add motion blur", &blur))
+        {
+            blur = true;
         }
 
         // Clear screen.
