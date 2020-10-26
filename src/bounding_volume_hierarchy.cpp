@@ -62,7 +62,7 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
     };
     createTree(root);
     std::cout << "\n\n";
-    printTree(root);
+    //printTree(root);
 }
 
 /**
@@ -506,6 +506,27 @@ bool boxesOverlap(const AxisAlignedBox& box1, const AxisAlignedBox& box2) {
 }
 
 /**
+ * Determine whether a given ray's origin is inside a box. 
+ * 
+ * The ray starts in the box also if it starts on the edges.
+ * 
+ * @param &ray reference to the currently shot ray
+ * @param &box reference to the box we are testing
+ * 
+ * @return true if the ray starts in the box, false otherwise
+ */
+bool startsInBox(Ray &ray, AxisAlignedBox &box) {
+    float x = ray.origin.x;
+    float y = ray.origin.y;
+    float z = ray.origin.z;
+
+    glm::vec3 lower = box.lower;
+    glm::vec3 upper = box.upper;
+
+    return lower.x <= x <= upper.x && lower.y <= y <= upper.y && lower.z <= z <= upper.z;
+}
+
+/**
  * Recursively traverse the tree and see if a given ray intersects the structure or not. 
  * 
  * Should be split into two functions for a better readability!!!
@@ -526,15 +547,17 @@ bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
 
     float tLeft = -1.0f;
     const Node &leftChild = current.subTree[0];
-    intersectRayWithShape(leftChild.AABB, ray);
-    tLeft = ray.t;
-    ray.t = originalT;
+    if (intersectRayWithShape(leftChild.AABB, ray)) { // intersecting to get the ray length
+        tLeft = ray.t;
+        ray.t = originalT;
+    }
 
     float tRight = -1.0f;
     const Node &rightChild = current.subTree[1];
-    intersectRayWithShape(rightChild.AABB, ray);
-    tRight = ray.t;
-    ray.t = originalT;
+    if (intersectRayWithShape(rightChild.AABB, ray)) { // intersecting to get the ray length
+        tRight = ray.t;
+        ray.t = originalT;
+    }
 
     if (tLeft < 0 && tRight < 0) { // neither of the children was intersected
         return false;
