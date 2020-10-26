@@ -44,6 +44,11 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
     // 
     
     std::vector<Mesh> meshes = pScene->meshes;
+
+    if (meshes.empty()) {
+        return;
+    }
+
     AxisAlignedBox rootAABB = getBoundingBoxFromMeshes(meshes);
 
     bool isLeaf = numLevels() - 1 == 0 || (meshes.size() == 1 && meshes[0].triangles.size() == 1);
@@ -728,7 +733,9 @@ bool BoundingVolumeHierarchy::intersect(Ray &ray, HitInfo &hitInfo) const
     //    }
     //}
     // Intersect with spheres.
-    hit = intersectDataStructure(ray, hitInfo, root);
+    if (!m_pScene->meshes.empty()) {
+        hit = intersectDataStructure(ray, hitInfo, root);
+    }
     //hit = intersectLevel(ray, hitInfo, root, 7);
     //hit = intersectDirty(ray, hitInfo, root);
     for (const auto &sphere : m_pScene->spheres)
