@@ -508,14 +508,14 @@ bool boxesOverlap(const AxisAlignedBox& box1, const AxisAlignedBox& box2) {
 /**
  * Determine whether a given ray's origin is inside a box. 
  * 
- * The ray starts in the box also if it starts on the edges.
+ * The ray does not start in the box if it starts on the edges.
  * 
  * @param &ray reference to the currently shot ray
  * @param &box reference to the box we are testing
  * 
  * @return true if the ray starts in the box, false otherwise
  */
-bool startsInBox(Ray &ray, AxisAlignedBox &box) {
+bool startsInBox(Ray &ray, const AxisAlignedBox &box) {
     float x = ray.origin.x;
     float y = ray.origin.y;
     float z = ray.origin.z;
@@ -523,7 +523,11 @@ bool startsInBox(Ray &ray, AxisAlignedBox &box) {
     glm::vec3 lower = box.lower;
     glm::vec3 upper = box.upper;
 
-    return lower.x <= x <= upper.x && lower.y <= y <= upper.y && lower.z <= z <= upper.z;
+    bool inX = lower.x < x && x < upper.x;
+    bool inY = lower.y < y && y < upper.y;
+    bool inZ = lower.z < z && z < upper.z;
+    bool result = inX && inY && inZ;
+    return result;
 }
 
 /**
@@ -559,7 +563,68 @@ bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
         ray.t = originalT;
     }
 
-    if (tLeft < 0 && tRight < 0) { // neither of the children was intersected
+    bool rayInLeftBox = startsInBox(ray, leftChild.AABB);
+    bool rayInRightBox = startsInBox(ray, rightChild.AABB);
+
+    if (rayInLeftBox && rayInRightBox) { // the ray is inside both boxes (they overlap)
+        return intersectRecursive(ray, hitInfo, leftChild) || intersectRecursive(ray, hitInfo, rightChild);
+    }
+    else if (rayInLeftBox) { // the ray is only inside the left box
+        bool hitLeft = intersectRecursive(ray, hitInfo, leftChild);
+
+        if (tRight < 0) {
+            return hitLeft;
+        }
+        else { // we know we hit the right box
+            if (hitLeft) { // we intersected a triangle in the left box
+                if (ray.t < tRight) { // the ray hit a triangle before even touching the right box
+                    return true;
+                }
+                else { // the ray hit a triangle after touching the right box - we must also check the right box
+                    return hitLeft | intersectRecursive(ray, hitInfo, rightChild); // NOT a conditional or!!!
+                }
+            }
+            else { // we can only intersect something in the right child
+                return intersectRecursive(ray, hitInfo, rightChild);
+            }
+        }
+    }
+    else if (rayInRightBox) { // the ray is only inside the right box
+        bool hitRight = intersectRecursive(ray, hitInfo, rightChild);
+
+        if (tLeft < 0) {
+            return hitRight;
+        }
+        else { // we know we hit the left box
+            if (hitRight) { // we intersected a triangle in the right box
+                if (ray.t < tLeft) { // the ray hit a triangle before even touching the left box
+                    return true;
+                }
+                else { // the ray hit a triangle after touching the left box - we must also check the left box
+                    return hitRight | intersectRecursive(ray, hitInfo, leftChild); // NOT a conditional or!!!
+                }
+            }
+            else { // we can only intersect something in the left child
+                return intersectRecursive(ray, hitInfo, leftChild);
+            }
+        }
+
+
+
+        //bool hitRight = intersectRecursive(ray, hitInfo, rightChild);
+        //// only if the ray hit a triangle before hitting the left box can we return true
+        //if (ray.t < tLeft) {
+        //    return true;
+        //}
+        //if (!hitRight && tLeft < 0) { // we did not intersect anything in the right box and did not even hit the left box
+        //    return false;
+        //}
+        //// otherwise, we need to check both boxes
+        //bool hitLeft = intersectRecursive(ray, hitInfo, leftChild);
+        //return hitLeft || hitRight;
+    }
+    // FROM HERE, WE ARE SURE THAT THE RAY STARTS OUTSIDE BOTH BOXES
+    else if (tLeft < 0 && tRight < 0) { // neither of the children was intersected
         return false;
     }
     else if (tLeft < 0) { // only the right child was intersected
@@ -576,14 +641,14 @@ bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
                 if (ray.t < tRight) {
                     return true;
                 }
-                return intersectRecursive(ray, hitInfo, rightChild) || hit;
+                return hit | intersectRecursive(ray, hitInfo, rightChild);
             }
             else {
                 bool hit = intersectRecursive(ray, hitInfo, rightChild);
                 if (ray.t < tLeft) {
                     return true;
                 }
-                return intersectRecursive(ray, hitInfo, leftChild) || hit;
+                return hit | intersectRecursive(ray, hitInfo, leftChild);
             }
         }
 
@@ -724,9 +789,10 @@ bool intersectDataStructure (Ray &ray, HitInfo &hitInfo, const Node &root) {
     AxisAlignedBox AABB = root.AABB;
 
     float originalT = ray.t; // CANNOT be a reference
-    if (intersectRayWithShape(AABB, ray)) {
+    if (startsInBox(ray, AABB) || intersectRayWithShape(AABB, ray)) {
         ray.t = originalT;
-        return intersectRecursive(ray, hitInfo, root);
+        bool hit = intersectRecursive(ray, hitInfo, root);
+        return hit;
     }
 
     return false;
