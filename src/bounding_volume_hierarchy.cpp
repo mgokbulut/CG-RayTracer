@@ -5,6 +5,7 @@
 AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes);
 void sortTrianglesByCentres(std::vector<Triangle> &triangles, Mesh &onlyMesh, int longestAxis);
 AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes);
+bool intersectRecursive(Ray& ray, HitInfo& hitInfo, const Node& current);
 
 void printTree(Node &root) {
     std::queue<Node> q;
@@ -506,6 +507,64 @@ bool boxesOverlap(const AxisAlignedBox& box1, const AxisAlignedBox& box2) {
 }
 
 /**
+ * Handle ray intersections when the ray does not start in any boxes. 
+ * 
+ * Called by intersectDeeper, calls intersectRecursive for further intersections. 
+ *
+ * @param &ray reference to the currently shot ray
+ * @param &hitInfo reference to the ray's hit info
+ * @param &leftChild reference to the left child of the node from which this function was called
+ * @param &rightChild reference to the right child of the node from which this function was called
+ * @param &tLeft reference to the t of the intersection with the left child's bounding box -> is -1 if this left box was not intersected
+ * @param &tRight reference to the t of the intersection with the right child's bounding box -> is -1 if this right box was not intersected
+ *
+ * @return true if the ray intersected some triangle, false otherwise
+ */
+bool intersectRayThatStartsOutsideBoxes(Ray& ray, HitInfo& hitInfo, const Node& leftChild, const Node& rightChild, float& tLeft, float& tRight) {
+    if (tLeft < 0 && tRight < 0) { // neither of the children was intersected
+        return false;
+    }
+    else if (tLeft < 0) { // only the right child was intersected
+        return intersectRecursive(ray, hitInfo, rightChild);
+    }
+    else if (tRight < 0) { // only the left child was intersected
+        return intersectRecursive(ray, hitInfo, leftChild);
+    }
+    else { // both boxes were intersected
+        // the boxes are overlapping
+        if (boxesOverlap(leftChild.AABB, rightChild.AABB)) {
+            if (tLeft < tRight) {
+                bool hit = intersectRecursive(ray, hitInfo, leftChild);
+                if (ray.t < tRight) {
+                    return true;
+                }
+                return hit | intersectRecursive(ray, hitInfo, rightChild);
+            }
+            else {
+                bool hit = intersectRecursive(ray, hitInfo, rightChild);
+                if (ray.t < tLeft) {
+                    return true;
+                }
+                return hit | intersectRecursive(ray, hitInfo, leftChild);
+            }
+        }
+
+        if (tLeft < tRight) { // the left child was intersected first
+            if (intersectRecursive(ray, hitInfo, leftChild)) {
+                return true;
+            }
+            return intersectRecursive(ray, hitInfo, rightChild);
+        }
+        else { // the right child was intersected first
+            if (intersectRecursive(ray, hitInfo, rightChild)) {
+                return true;
+            }
+            return intersectRecursive(ray, hitInfo, leftChild);
+        }
+    }
+}
+
+/**
  * Determine whether a given ray's origin is inside a box. 
  * 
  * The ray does not start in the box if it starts on the edges.
@@ -531,38 +590,22 @@ bool startsInBox(Ray &ray, const AxisAlignedBox &box) {
 }
 
 /**
- * Recursively traverse the tree and see if a given ray intersects the structure or not. 
+ * Check for further intersections inside two child bounding boxes. 
  * 
- * Should be split into two functions for a better readability!!!
+ * Called by intersectNonLeaf, calls intersectRecursive for further intersections. 
+ * Handles intersections when the ray starts inside a box/boxes,
+ * calls intersectRayThatStartsOutsideBoxes if the ray's origin is in neither of these boxes.
  * 
  * @param &ray reference to the currently shot ray
- * @param &hitInfo reference to HitInfo
- * @param &current reference to the node we are currently at
- * @return intersected bool stating whether some triangle was intersected or not
+ * @param &hitInfo reference to the ray's hit info
+ * @param &leftChild reference to the left child of the node from which this function was called
+ * @param &rightChild reference to the right child of the node from which this function was called
+ * @param &tLeft reference to the t of the intersection with the left child's bounding box -> is -1 if this left box was not intersected
+ * @param &tRight reference to the t of the intersection with the right child's bounding box -> is -1 if this right box was not intersected
+ * 
+ * @return true if the ray intersected some triangle, false otherwise
  */
-bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
-    AxisAlignedBox AABB = current.AABB;
-
-    if (current.isLeaf) {
-        return intersectLeaf(ray, hitInfo, current);
-    }
-
-    float originalT = ray.t; // CANNOT be a reference!!
-
-    float tLeft = -1.0f;
-    const Node &leftChild = current.subTree[0];
-    if (intersectRayWithShape(leftChild.AABB, ray)) { // intersecting to get the ray length
-        tLeft = ray.t;
-        ray.t = originalT;
-    }
-
-    float tRight = -1.0f;
-    const Node &rightChild = current.subTree[1];
-    if (intersectRayWithShape(rightChild.AABB, ray)) { // intersecting to get the ray length
-        tRight = ray.t;
-        ray.t = originalT;
-    }
-
+bool intersectDeeper(Ray& ray, HitInfo& hitInfo, const Node& leftChild, const Node& rightChild, float& tLeft, float& tRight) {
     bool rayInLeftBox = startsInBox(ray, leftChild.AABB);
     bool rayInRightBox = startsInBox(ray, rightChild.AABB);
 
@@ -608,110 +651,62 @@ bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
                 return intersectRecursive(ray, hitInfo, leftChild);
             }
         }
-
-
-
-        //bool hitRight = intersectRecursive(ray, hitInfo, rightChild);
-        //// only if the ray hit a triangle before hitting the left box can we return true
-        //if (ray.t < tLeft) {
-        //    return true;
-        //}
-        //if (!hitRight && tLeft < 0) { // we did not intersect anything in the right box and did not even hit the left box
-        //    return false;
-        //}
-        //// otherwise, we need to check both boxes
-        //bool hitLeft = intersectRecursive(ray, hitInfo, leftChild);
-        //return hitLeft || hitRight;
     }
-    // FROM HERE, WE ARE SURE THAT THE RAY STARTS OUTSIDE BOTH BOXES
-    else if (tLeft < 0 && tRight < 0) { // neither of the children was intersected
-        return false;
+    else {
+        return intersectRayThatStartsOutsideBoxes(ray, hitInfo, leftChild, rightChild, tLeft, tRight);
     }
-    else if (tLeft < 0) { // only the right child was intersected
-        return intersectRecursive(ray, hitInfo, rightChild);
-    }
-    else if (tRight < 0) { // only the left child was intersected
-        return intersectRecursive(ray, hitInfo, leftChild);
-    }
-    else { // both boxes were intersected
-        // the boxes are overlapping
-        if (boxesOverlap(leftChild.AABB, rightChild.AABB)) {
-            if (tLeft < tRight) {
-                bool hit = intersectRecursive(ray, hitInfo, leftChild);
-                if (ray.t < tRight) {
-                    return true;
-                }
-                return hit | intersectRecursive(ray, hitInfo, rightChild);
-            }
-            else {
-                bool hit = intersectRecursive(ray, hitInfo, rightChild);
-                if (ray.t < tLeft) {
-                    return true;
-                }
-                return hit | intersectRecursive(ray, hitInfo, leftChild);
-            }
-        }
+}
 
-        if (tLeft < tRight) { // the left child was intersected first
-            if (intersectRecursive(ray, hitInfo, leftChild)) {
-                return true;
-            }
-            return intersectRecursive(ray, hitInfo, rightChild);
-        }
-        else { // the right child was intersected first
-            if (intersectRecursive(ray, hitInfo, rightChild)) {
-                return true;
-            }
-            return intersectRecursive(ray, hitInfo, leftChild);
-        }
+/**
+ * Intersect a node that is not a leaf. 
+ * 
+ * Check the intersections of the bounding boxes of the two children 
+ * and call the intersectDeeper function to intersect the insides of these boxes.
+ * 
+ * @param &ray reference to the ray being shot
+ * @param &hitInfo reference to the ray's hit info
+ * @param &current reference to the current node
+ * 
+ * @return true if the ray intersected a triangle in any of the children, false otherwise
+ */
+bool intersectNonLeaf(Ray& ray, HitInfo& hitInfo, const Node& current) {
+    float originalT = ray.t; // CANNOT be a reference!!
+
+    float tLeft = -1.0f;
+    const Node& leftChild = current.subTree[0];
+    if (intersectRayWithShape(leftChild.AABB, ray)) { // intersecting to get the ray length
+        tLeft = ray.t;
+        ray.t = originalT;
     }
 
+    float tRight = -1.0f;
+    const Node& rightChild = current.subTree[1];
+    if (intersectRayWithShape(rightChild.AABB, ray)) { // intersecting to get the ray length
+        tRight = ray.t;
+        ray.t = originalT;
+    }
 
-    //else if (tLeft < tRight) {
-    //    if (intersectRecursive(ray, hitInfo, leftChild)) {
-    //        return true;
-    //    }
-    //    return intersectRecursive(ray, hitInfo, rightChild);
-    //}
-    //else if (tRight < tLeft) {
-    //    if (intersectRecursive(ray, hitInfo, rightChild)) {
-    //        return true;
-    //    }
-    //    return intersectRecursive(ray, hitInfo, leftChild);
-    //}
-    //else {
-    //    bool hit = intersectRecursive(ray, hitInfo, rightChild);
-    //    return hit || intersectRecursive(ray, hitInfo, leftChild);
-    //}
+    return intersectDeeper(ray, hitInfo, leftChild, rightChild, tLeft, tRight);
+}
 
+/**
+ * Recursively traverse the tree and see if a given ray intersects the structure or not. 
+ * 
+ * Should be split into two functions for a better readability!!!
+ * 
+ * @param &ray reference to the currently shot ray
+ * @param &hitInfo reference to HitInfo
+ * @param &current reference to the node we are currently at
+ * @return intersected bool stating whether some triangle was intersected or not
+ */
+bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
+    AxisAlignedBox AABB = current.AABB;
 
+    if (current.isLeaf) {
+        return intersectLeaf(ray, hitInfo, current);
+    }
 
-    //for (const Node& child : current.subTree) {
-    //    if (intersectRayWithShape(child.AABB, ray)) {
-    //        t.push_back(ray.t);
-    //        intersected.push_back(child);
-    //        ray.t = originalT;
-    //    }
-    //}
-
-    //if (t.size() == 0) {
-    //    return false;
-    //}
-    //else if (t.size() == 1) {
-    //    return intersectRecursive(ray, hitInfo, intersected[0]);
-    //}
-    //else if (t[0] < t[1]) {
-    //    if (intersectRecursive(ray, hitInfo, intersected[0])) {
-    //        return true;
-    //    }
-    //    return intersectRecursive(ray, hitInfo, intersected[1]);
-    //}
-    //else {
-    //    if (intersectRecursive(ray, hitInfo, intersected[1])) {
-    //        return true;
-    //    }
-    //    return intersectRecursive(ray, hitInfo, intersected[0]);
-    //}
+    return intersectNonLeaf(ray, hitInfo, current);
 }
 
 bool intersectLevel(Ray& ray, HitInfo &hitInfo, const Node& current, int level) {
