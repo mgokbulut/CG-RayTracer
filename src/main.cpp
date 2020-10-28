@@ -392,45 +392,267 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
 
         }
     }
-    Trackball cameraNew = camera;
-    cameraNew.setLookAt(glm::vec3(0.13, 0, 0));
-    for (int y = 0; y < windowResolution.y; y++)
+
+    if (blur == true)
     {
-        for (int x = 0; x != windowResolution.x; x++)
+
+        Trackball cameraNew = camera;
+        cameraNew.setLookAt(glm::vec3(0.01, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
         {
-            // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
-            const glm::vec2 normalizedPixelPos{
-                float(x) / windowResolution.x * 2.0f - 1.0f,
-                float(y) / windowResolution.y * 2.0f - 1.0f };
-            const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
-            glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
-            
-            matrixPixels.at(y * windowResolution.x + x) +=  getFinalColor(scene, bvh, cameraRay);
-            if(blur == true)
-                screen.setPixel(x, y, glm::vec3(matrixPixels.at(y * windowResolution.x + x).x / 2, matrixPixels.at(y * windowResolution.x + x).y / 2, matrixPixels.at(y * windowResolution.x + x).z / 2));
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+
+
+            }
+        }
+
+        cameraNew.setLookAt(glm::vec3(0.02, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
+        {
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+
+            }
+        }
+
+        cameraNew.setLookAt(glm::vec3(0.03, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
+        {
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+
+            }
+        }
+
+        cameraNew.setLookAt(glm::vec3(0.04, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
+        {
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+
+            }
+        }
+
+        cameraNew.setLookAt(glm::vec3(0.05, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
+        {
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+
+            }
+        }
+
+        cameraNew.setLookAt(glm::vec3(0.06, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
+        {
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+
+            }
+        }
+
+        cameraNew.setLookAt(glm::vec3(0.07, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
+        {
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+
+            }
+        }
+
+        cameraNew.setLookAt(glm::vec3(0.08, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
+        {
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+
+            }
+        }
+
+        cameraNew.setLookAt(glm::vec3(0.09, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
+        {
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+
+            }
+        }
+
+        cameraNew.setLookAt(glm::vec3(0.10, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
+        {
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+
+            }
+        }
+
+        cameraNew.setLookAt(glm::vec3(0.11, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
+        {
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+
+            }
+        }
+
+        cameraNew.setLookAt(glm::vec3(0.12, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
+        {
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+
+            }
+        }
+
+        cameraNew.setLookAt(glm::vec3(0.13, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
+        {
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+
+            }
+        }
+
+        cameraNew.setLookAt(glm::vec3(0.14, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
+        {
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+
+            }
+        }
+
+        cameraNew.setLookAt(glm::vec3(0.15, 0, 0));
+        for (int y = 0; y < windowResolution.y; y++)
+        {
+            for (int x = 0; x != windowResolution.x; x++)
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
+                glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
+
+                matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
+                screen.setPixel(x, y, glm::vec3(matrixPixels.at(y * windowResolution.x + x).x / 16, matrixPixels.at(y * windowResolution.x + x).y / 16, matrixPixels.at(y * windowResolution.x + x).z / 16));
+            }
         }
     }
-
-    Trackball cameraNew1 = camera;
-    cameraNew.setLookAt(glm::vec3(0.15, 0, 0));
-    for (int y = 0; y < windowResolution.y; y++)
-    {
-        for (int x = 0; x != windowResolution.x; x++)
-        {
-            // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
-            const glm::vec2 normalizedPixelPos{
-                float(x) / windowResolution.x * 2.0f - 1.0f,
-                float(y) / windowResolution.y * 2.0f - 1.0f };
-            const Ray cameraRay = cameraNew1.generateRay(normalizedPixelPos);
-            glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
-
-            matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-            if(blur == true)
-                screen.setPixel(x, y, glm::vec3(matrixPixels.at(y * windowResolution.x + x).x / 3, matrixPixels.at(y * windowResolution.x + x).y / 3, matrixPixels.at(y * windowResolution.x + x).z / 3));
-        }
-    }
-
-    
 }
 
 int main(int argc, char **argv)
