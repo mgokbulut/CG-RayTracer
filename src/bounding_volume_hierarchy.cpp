@@ -5,28 +5,28 @@
 AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes);
 void sortTrianglesByCentres(std::vector<Triangle> &triangles, Mesh &onlyMesh, int longestAxis);
 AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes);
-bool intersectRecursive(Ray& ray, HitInfo& hitInfo, const Node& current);
+bool intersectRecursive(Ray& ray, HitInfo& hitInfo, const Node& current, const std::vector<Node>& nodes);
 
-void printTree(Node &root) {
-    std::queue<Node> q;
-    q.push(root);
-    int level = 0;
-    while (!q.empty()) {
-        Node &current = q.front();
-        if (!current.isLeaf) {
-            for (Node &child : current.subTree) {
-                q.push(child);
-            }
-        }
-
-        if (current.level != level) {
-            std::cout << std::endl;
-            level++;
-        }
-        std::cout << "(" << current.isLeaf << ") ";
-        q.pop();
-    }
-}
+//void printTree(Node &root) {
+//    std::queue<Node> q;
+//    q.push(root);
+//    int level = 0;
+//    while (!q.empty()) {
+//        Node &current = q.front();
+//        if (!current.isLeaf) {
+//            for (Node &child : current.subTree) {
+//                q.push(child);
+//            }
+//        }
+//
+//        if (current.level != level) {
+//            std::cout << std::endl;
+//            level++;
+//        }
+//        std::cout << "(" << current.isLeaf << ") ";
+//        q.pop();
+//    }
+//}
 
 /**
  * Constructor for the bvh. 
@@ -54,15 +54,20 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
 
     bool isLeaf = numLevels() - 1 == 0 || (meshes.size() == 1 && meshes[0].triangles.size() == 1);
 
-    root = Node {
+    Node root = Node {
         isLeaf,
         0,
         rootAABB,
         {},
         meshes,
     };
+    nodes.push_back(root);
     createTree(root);
     std::cout << "\n\n";
+    std::cout << nodes.size() << std::endl;
+    for (Node node : nodes) {
+        std::cout << node.indices.size() << std::endl;
+    }
     //printTree(root);
 }
 
@@ -271,9 +276,6 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node)
     float y = maxs.y - mins.y;
     float z = maxs.z - mins.z;
     int longestAxis = (x > y) ? ((x > z) ? 0 : 2) : ((y > z) ? 1 : 2);
-
-    // --- TODO List --- //
-    // check the passing by value/reference
     
     // Create the fields that will be passed by reference to
     // and modified by other functions
@@ -309,10 +311,17 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node)
     bool leftIsLeaf = areLeaf || (leftChild.size() == 1 && leftChild[0].triangles.size() == 1);
     bool rightIsLeaf = areLeaf || (rightChild.size() == 1 && rightChild[0].triangles.size() == 1);
 
-    std::vector<Node> children;
-    children.push_back(Node{leftIsLeaf, node.level + 1, AABB_left, {}, leftChild});
-    children.push_back(Node{rightIsLeaf, node.level + 1, AABB_right, {}, rightChild});
-    node.subTree = children;
+    int nodesLength = nodes.size();
+    node.indices.push_back(nodesLength);
+    node.indices.push_back(nodesLength + 1);
+    // note: after a push_back, the node reference is lost(!)
+    nodes.push_back(Node{leftIsLeaf, node.level + 1, AABB_left, {}, leftChild});
+    nodes.push_back(Node{ rightIsLeaf, node.level + 1, AABB_right, {}, rightChild});
+    
+    //std::vector<Node> children;
+    //children.push_back(Node{leftIsLeaf, node.level + 1, AABB_left, {}, leftChild});
+    //children.push_back(Node{rightIsLeaf, node.level + 1, AABB_right, {}, rightChild});
+    //node.subTree = children;
 }
 
 /**
@@ -330,6 +339,7 @@ void BoundingVolumeHierarchy::createTree(Node &node)
     // ending condition is when the node is leaf.
     if (node.isLeaf)
     {
+        //setTriangleIndices(node);
         return;
     }
     else
@@ -337,12 +347,29 @@ void BoundingVolumeHierarchy::createTree(Node &node)
         getSubNodes(node);
 
         // make the recursive call
-        for (Node &subNode : node.subTree)
+        for (int &childIndex : node.indices)
         {
-            createTree(subNode);
+            Node& child = nodes[childIndex]; // MUST BE A REFERENCE
+            createTree(child);
         }
     }
 }
+
+Node BoundingVolumeHierarchy::getLeftChild(Node& node)
+{
+    return Node();
+}
+
+Node BoundingVolumeHierarchy::getRightChild(Node& node)
+{
+    return Node();
+}
+
+void BoundingVolumeHierarchy::setTriangleIndices(Node& node)
+{
+}
+
+
 
 /**
  * !Not used! Get the bounding box of the root node. 
@@ -387,7 +414,7 @@ AxisAlignedBox getRootBoundingBox(std::vector<Mesh> &meshes)
  * @param &result std::vector reference to the resulting vector of AABBs
  * @param level int of the level we want to retrieve
  */
-void getNodesAtLevel(Node &node, std::vector<Node> &result, int level)
+void BoundingVolumeHierarchy::getNodesAtLevel(Node &node, std::vector<Node> &result, int level)
 {
     if (node.level == level)
     {
@@ -399,9 +426,9 @@ void getNodesAtLevel(Node &node, std::vector<Node> &result, int level)
         return;
     }
 
-    for (Node &child : node.subTree)
+    for (int &childIndex : node.indices)
     {
-        getNodesAtLevel(child, result, level);
+        getNodesAtLevel(nodes[childIndex], result, level);
     }
 }
 
@@ -422,6 +449,7 @@ void BoundingVolumeHierarchy::debugDraw(int level)
     glm::vec3 blue = glm::vec3(0.05f, 0.05f, 1.0f);
 
     std::vector<Node> result;
+    Node& root = nodes[0];
     getNodesAtLevel(root, result, level);
 
     for (Node n : result) {
@@ -520,46 +548,47 @@ bool boxesOverlap(const AxisAlignedBox& box1, const AxisAlignedBox& box2) {
  *
  * @return true if the ray intersected some triangle, false otherwise
  */
-bool intersectRayThatStartsOutsideBoxes(Ray& ray, HitInfo& hitInfo, const Node& leftChild, const Node& rightChild, float& tLeft, float& tRight) {
+bool intersectRayThatStartsOutsideBoxes(Ray& ray, HitInfo& hitInfo,
+    const Node& leftChild, const Node& rightChild, float& tLeft, float& tRight, const std::vector<Node>& nodes) {
     if (tLeft < 0 && tRight < 0) { // neither of the children was intersected
         return false;
     }
     else if (tLeft < 0) { // only the right child was intersected
-        return intersectRecursive(ray, hitInfo, rightChild);
+        return intersectRecursive(ray, hitInfo, rightChild, nodes);
     }
     else if (tRight < 0) { // only the left child was intersected
-        return intersectRecursive(ray, hitInfo, leftChild);
+        return intersectRecursive(ray, hitInfo, leftChild, nodes);
     }
     else { // both boxes were intersected
         // the boxes are overlapping
         if (boxesOverlap(leftChild.AABB, rightChild.AABB)) {
             if (tLeft < tRight) {
-                bool hit = intersectRecursive(ray, hitInfo, leftChild);
+                bool hit = intersectRecursive(ray, hitInfo, leftChild, nodes);
                 if (ray.t < tRight) {
                     return true;
                 }
-                return hit | intersectRecursive(ray, hitInfo, rightChild);
+                return hit | intersectRecursive(ray, hitInfo, rightChild, nodes);
             }
             else {
-                bool hit = intersectRecursive(ray, hitInfo, rightChild);
+                bool hit = intersectRecursive(ray, hitInfo, rightChild, nodes);
                 if (ray.t < tLeft) {
                     return true;
                 }
-                return hit | intersectRecursive(ray, hitInfo, leftChild);
+                return hit | intersectRecursive(ray, hitInfo, leftChild, nodes);
             }
         }
 
         if (tLeft < tRight) { // the left child was intersected first
-            if (intersectRecursive(ray, hitInfo, leftChild)) {
+            if (intersectRecursive(ray, hitInfo, leftChild, nodes)) {
                 return true;
             }
-            return intersectRecursive(ray, hitInfo, rightChild);
+            return intersectRecursive(ray, hitInfo, rightChild, nodes);
         }
         else { // the right child was intersected first
-            if (intersectRecursive(ray, hitInfo, rightChild)) {
+            if (intersectRecursive(ray, hitInfo, rightChild, nodes)) {
                 return true;
             }
-            return intersectRecursive(ray, hitInfo, leftChild);
+            return intersectRecursive(ray, hitInfo, leftChild, nodes);
         }
     }
 }
@@ -605,15 +634,16 @@ bool startsInBox(Ray &ray, const AxisAlignedBox &box) {
  * 
  * @return true if the ray intersected some triangle, false otherwise
  */
-bool intersectDeeper(Ray& ray, HitInfo& hitInfo, const Node& leftChild, const Node& rightChild, float& tLeft, float& tRight) {
+bool intersectDeeper(Ray& ray, HitInfo& hitInfo,
+    const Node& leftChild, const Node& rightChild, float& tLeft, float& tRight, const std::vector<Node>& nodes) {
     bool rayInLeftBox = startsInBox(ray, leftChild.AABB);
     bool rayInRightBox = startsInBox(ray, rightChild.AABB);
 
     if (rayInLeftBox && rayInRightBox) { // the ray is inside both boxes (they overlap)
-        return intersectRecursive(ray, hitInfo, leftChild) || intersectRecursive(ray, hitInfo, rightChild);
+        return intersectRecursive(ray, hitInfo, leftChild, nodes) || intersectRecursive(ray, hitInfo, rightChild, nodes);
     }
     else if (rayInLeftBox) { // the ray is only inside the left box
-        bool hitLeft = intersectRecursive(ray, hitInfo, leftChild);
+        bool hitLeft = intersectRecursive(ray, hitInfo, leftChild, nodes);
 
         if (tRight < 0) {
             return hitLeft;
@@ -624,16 +654,16 @@ bool intersectDeeper(Ray& ray, HitInfo& hitInfo, const Node& leftChild, const No
                     return true;
                 }
                 else { // the ray hit a triangle after touching the right box - we must also check the right box
-                    return hitLeft | intersectRecursive(ray, hitInfo, rightChild); // NOT a conditional or!!!
+                    return hitLeft | intersectRecursive(ray, hitInfo, rightChild, nodes); // NOT a conditional or!!!
                 }
             }
             else { // we can only intersect something in the right child
-                return intersectRecursive(ray, hitInfo, rightChild);
+                return intersectRecursive(ray, hitInfo, rightChild, nodes);
             }
         }
     }
     else if (rayInRightBox) { // the ray is only inside the right box
-        bool hitRight = intersectRecursive(ray, hitInfo, rightChild);
+        bool hitRight = intersectRecursive(ray, hitInfo, rightChild, nodes);
 
         if (tLeft < 0) {
             return hitRight;
@@ -644,16 +674,16 @@ bool intersectDeeper(Ray& ray, HitInfo& hitInfo, const Node& leftChild, const No
                     return true;
                 }
                 else { // the ray hit a triangle after touching the left box - we must also check the left box
-                    return hitRight | intersectRecursive(ray, hitInfo, leftChild); // NOT a conditional or!!!
+                    return hitRight | intersectRecursive(ray, hitInfo, leftChild, nodes); // NOT a conditional or!!!
                 }
             }
             else { // we can only intersect something in the left child
-                return intersectRecursive(ray, hitInfo, leftChild);
+                return intersectRecursive(ray, hitInfo, leftChild, nodes);
             }
         }
     }
     else {
-        return intersectRayThatStartsOutsideBoxes(ray, hitInfo, leftChild, rightChild, tLeft, tRight);
+        return intersectRayThatStartsOutsideBoxes(ray, hitInfo, leftChild, rightChild, tLeft, tRight, nodes);
     }
 }
 
@@ -669,24 +699,24 @@ bool intersectDeeper(Ray& ray, HitInfo& hitInfo, const Node& leftChild, const No
  * 
  * @return true if the ray intersected a triangle in any of the children, false otherwise
  */
-bool intersectNonLeaf(Ray& ray, HitInfo& hitInfo, const Node& current) {
+bool intersectNonLeaf(Ray& ray, HitInfo& hitInfo, const Node& current, const std::vector<Node>& nodes) {
     float originalT = ray.t; // CANNOT be a reference!!
 
     float tLeft = -1.0f;
-    const Node& leftChild = current.subTree[0];
+    const Node& leftChild = nodes[current.indices[0]];
     if (intersectRayWithShape(leftChild.AABB, ray)) { // intersecting to get the ray length
         tLeft = ray.t;
         ray.t = originalT;
     }
 
     float tRight = -1.0f;
-    const Node& rightChild = current.subTree[1];
+    const Node& rightChild = nodes[current.indices[1]];
     if (intersectRayWithShape(rightChild.AABB, ray)) { // intersecting to get the ray length
         tRight = ray.t;
         ray.t = originalT;
     }
 
-    return intersectDeeper(ray, hitInfo, leftChild, rightChild, tLeft, tRight);
+    return intersectDeeper(ray, hitInfo, leftChild, rightChild, tLeft, tRight, nodes);
 }
 
 /**
@@ -699,75 +729,75 @@ bool intersectNonLeaf(Ray& ray, HitInfo& hitInfo, const Node& current) {
  * @param &current reference to the node we are currently at
  * @return intersected bool stating whether some triangle was intersected or not
  */
-bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current) {
+bool intersectRecursive(Ray &ray, HitInfo &hitInfo, const Node &current, const std::vector<Node>& nodes) {
     AxisAlignedBox AABB = current.AABB;
 
     if (current.isLeaf) {
         return intersectLeaf(ray, hitInfo, current);
     }
 
-    return intersectNonLeaf(ray, hitInfo, current);
+    return intersectNonLeaf(ray, hitInfo, current, nodes);
 }
 
-bool intersectLevel(Ray& ray, HitInfo &hitInfo, const Node& current, int level) {
-    if (current.level == level) {
-        if (current.isLeaf) {
-            bool hit = false;
-            for (const auto& mesh : current.meshes)
-            {
-                for (const auto& tri : mesh.triangles)
-                {
-                    const auto v0 = mesh.vertices[tri[0]];
-                    const auto v1 = mesh.vertices[tri[1]];
-                    const auto v2 = mesh.vertices[tri[2]];
-                    if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo))
-                    {
-                        hitInfo.material = mesh.material;
-                        hit = true;
-                    }
-                }
-            }
-            return hit;
-        }
-        return intersectRayWithShape(current.AABB, ray);
-    }
+//bool intersectLevel(Ray& ray, HitInfo &hitInfo, const Node& current, int level) {
+//    if (current.level == level) {
+//        if (current.isLeaf) {
+//            bool hit = false;
+//            for (const auto& mesh : current.meshes)
+//            {
+//                for (const auto& tri : mesh.triangles)
+//                {
+//                    const auto v0 = mesh.vertices[tri[0]];
+//                    const auto v1 = mesh.vertices[tri[1]];
+//                    const auto v2 = mesh.vertices[tri[2]];
+//                    if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo))
+//                    {
+//                        hitInfo.material = mesh.material;
+//                        hit = true;
+//                    }
+//                }
+//            }
+//            return hit;
+//        }
+//        return intersectRayWithShape(current.AABB, ray);
+//    }
+//
+//    bool hit = false;
+//
+//    for (Node child : current.subTree) {
+//        hit |= intersectLevel(ray, hitInfo, child, level);
+//    }
+//
+//    return hit;
+//}
 
-    bool hit = false;
-
-    for (Node child : current.subTree) {
-        hit |= intersectLevel(ray, hitInfo, child, level);
-    }
-
-    return hit;
-}
-
-bool intersectDirty(Ray& ray, HitInfo& hitInfo, const Node& current) {
-    if (current.isLeaf) {
-        bool hit = false;
-        for (const auto& mesh : current.meshes)
-        {
-            for (const auto& tri : mesh.triangles)
-            {
-                const auto v0 = mesh.vertices[tri[0]];
-                const auto v1 = mesh.vertices[tri[1]];
-                const auto v2 = mesh.vertices[tri[2]];
-                if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo))
-                {
-                    hitInfo.material = mesh.material;
-                    hit = true;
-                }
-            }
-        }
-        return hit;
-    }
-
-    bool hit = false;
-    for (Node child : current.subTree) {
-        hit |= intersectDirty(ray, hitInfo, child);
-    }
-
-    return hit;
-}
+//bool intersectDirty(Ray& ray, HitInfo& hitInfo, const Node& current) {
+//    if (current.isLeaf) {
+//        bool hit = false;
+//        for (const auto& mesh : current.meshes)
+//        {
+//            for (const auto& tri : mesh.triangles)
+//            {
+//                const auto v0 = mesh.vertices[tri[0]];
+//                const auto v1 = mesh.vertices[tri[1]];
+//                const auto v2 = mesh.vertices[tri[2]];
+//                if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo))
+//                {
+//                    hitInfo.material = mesh.material;
+//                    hit = true;
+//                }
+//            }
+//        }
+//        return hit;
+//    }
+//
+//    bool hit = false;
+//    for (Node child : current.subTree) {
+//        hit |= intersectDirty(ray, hitInfo, child);
+//    }
+//
+//    return hit;
+//}
 
 /**
  * Initial method of a ray-triangle intersection using a data structure. 
@@ -780,13 +810,13 @@ bool intersectDirty(Ray& ray, HitInfo& hitInfo, const Node& current) {
  * @param &root Node reference to the root node
  * @return intersected bool stating whether the root AABB was intersected or not
  */
-bool intersectDataStructure (Ray &ray, HitInfo &hitInfo, const Node &root) {
+bool intersectDataStructure(Ray& ray, HitInfo& hitInfo, const Node& root, const std::vector<Node> &nodes) {
     AxisAlignedBox AABB = root.AABB;
 
     float originalT = ray.t; // CANNOT be a reference
     if (startsInBox(ray, AABB) || intersectRayWithShape(AABB, ray)) {
         ray.t = originalT;
-        bool hit = intersectRecursive(ray, hitInfo, root);
+        bool hit = intersectRecursive(ray, hitInfo, root, nodes);
         return hit;
     }
 
@@ -818,7 +848,9 @@ bool BoundingVolumeHierarchy::intersect(Ray &ray, HitInfo &hitInfo) const
     //}
     // Intersect with spheres.
     if (!m_pScene->meshes.empty()) {
-        hit = intersectDataStructure(ray, hitInfo, root);
+        std::cout << "Intersecting, node size: " << nodes.size() << std::endl;
+        const Node& root = nodes[0];
+        hit = intersectDataStructure(ray, hitInfo, root, nodes);
     }
     //hit = intersectLevel(ray, hitInfo, root, 7);
     //hit = intersectDirty(ray, hitInfo, root);

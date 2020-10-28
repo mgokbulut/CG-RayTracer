@@ -8,7 +8,7 @@ struct Node
     bool isLeaf;
     int level;
     AxisAlignedBox AABB;
-    std::vector<Node> subTree;
+    std::vector<int> indices;
     std::vector<Mesh> meshes;
 };
 
@@ -18,11 +18,22 @@ class BoundingVolumeHierarchy
 private:
     Scene *m_pScene;
 
-    //std::vector<Node> nodes;
-    Node root;
+    std::vector<Node> nodes;
+    //Node root;
     void getSubNodes(Node &node);
     void createTree(Node &node);
 
+    Node getLeftChild(Node &node);
+    Node getRightChild(Node &node);
+    void setTriangleIndices(Node& node);
+    void getNodesAtLevel(Node& node, std::vector<Node>& result, int level);
+
+    //bool intersectRayThatStartsOutsideBoxes(Ray& ray, HitInfo& hitInfo, const Node& leftChild,
+    //    const Node& rightChild, float& tLeft, float& tRight);
+    //bool intersectDeeper(Ray& ray, HitInfo& hitInfo, const Node& leftChild, const Node& rightChild, float& tLeft, float& tRight);
+    //bool intersectNonLeaf(Ray& ray, HitInfo& hitInfo, const Node& current);
+    //bool intersectRecursive(Ray& ray, HitInfo& hitInfo, const Node& current);
+    //bool intersectDataStructure(Ray& ray, HitInfo& hitInfo, const Node& root);
 public:
     BoundingVolumeHierarchy(Scene *pScene);
 
