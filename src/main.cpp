@@ -234,6 +234,11 @@ static void shade(int level, Ray ray, glm::vec3 &color, const Scene &scene, cons
     //ComputeDirectLight
     glm::vec3 directColor = shading(ray, hitInfo, scene, bvh);
 
+    if (hitInfo.material.ks.x <= 0.01f, hitInfo.material.ks.y <= 0.01f, hitInfo.material.ks.z <= 0.01f)
+    {
+        color = directColor;
+        return;
+    }
     //ComputeReflectedRay
     glm::vec3 fromCamToPos = ray.direction;
     glm::vec3 reflected = glm::normalize(glm::reflect(fromCamToPos, hitInfo.normal));
@@ -383,7 +388,8 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 float(y) / windowResolution.y * 2.0f - 1.0f};
             const Ray cameraRay = camera.generateRay(normalizedPixelPos);
             glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
-            if (bloom == true) {
+            if (bloom == true)
+            {
                 screen.setPixel(x, y, matrixColorsScreen.at((y * windowResolution.x) + x) + color);
                 matrixPixels.at(y * windowResolution.x + x) += matrixColorsScreen.at((y * windowResolution.x) + x) + color;
             }
