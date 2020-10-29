@@ -14,7 +14,7 @@ bool pointInTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &
 
 Plane trianglePlane(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2);
 
-bool intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, Ray &ray, HitInfo &hitInfo, const glm::vec3 &n1, const glm::vec3 &n2,const glm::vec3 &n3);
+bool intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, Ray &ray, HitInfo &hitInfo);
 bool intersectRayWithShape(const Sphere &sphere, Ray &ray, HitInfo &hitInfo);
 bool intersectRayWithShape(const AxisAlignedBox &box, Ray &ray);
 bool intersectRayWithShape(const Mesh &mesh, Ray &ray, HitInfo &hitInfo);

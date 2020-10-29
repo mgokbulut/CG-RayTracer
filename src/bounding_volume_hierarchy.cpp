@@ -530,7 +530,7 @@ bool intersectLeaf(Ray& ray, HitInfo& hitInfo, const Node& current)
             const auto v0 = mesh.vertices[tri[0]];
             const auto v1 = mesh.vertices[tri[1]];
             const auto v2 = mesh.vertices[tri[2]];
-            if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo, v0.n, v1.n, v2.n))
+            if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo))
             {
                 hitInfo.material = mesh.material;
                 hit = true;
