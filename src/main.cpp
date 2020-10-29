@@ -383,8 +383,10 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 float(y) / windowResolution.y * 2.0f - 1.0f};
             const Ray cameraRay = camera.generateRay(normalizedPixelPos);
             glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
-            if (bloom == true)
+            if (bloom == true) {
                 screen.setPixel(x, y, matrixColorsScreen.at((y * windowResolution.x) + x) + color);
+                matrixPixels.at(y * windowResolution.x + x) += matrixColorsScreen.at((y * windowResolution.x) + x) + color;
+            }
         }
     }
 
