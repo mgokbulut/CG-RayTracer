@@ -43,9 +43,16 @@ enum class ViewMode
 */
 static glm::vec3 randomUnitVector()
 {
-    float y = rand() - RAND_MAX / 2;
+    std::random_device mch;
+    std::default_random_engine generator(mch());
+    std::normal_distribution<float> distribution(0.0f, 1.0f);
+    float y = distribution(generator);
+    float x = distribution(generator);
+    float s = distribution(generator);
+    /*float y = rand() - RAND_MAX / 2;
     float x = rand() - RAND_MAX / 2;
-    float s = rand() - RAND_MAX / 2;
+    float s = rand() - RAND_MAX / 2;*/
+    
     return glm::normalize(glm::vec3(y, x, s));
 }
 
