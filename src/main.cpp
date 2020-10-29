@@ -158,7 +158,7 @@ static glm::vec3 shading(Ray &ray, HitInfo &hitInfo, const Scene &scene, const B
 
     for (const SphericalLight &spherical : sphericalLights)
     {
-        const PointLight& light = { spherical.position, spherical.color };
+        const PointLight &light = {spherical.position, spherical.color};
 
         const glm::vec3 fromPosToLight = glm::normalize(light.position - pointOn);
         glm::vec3 diffuse = diffuseOneLight(ray, light, fromPosToLight, hitInfo);
@@ -167,26 +167,25 @@ static glm::vec3 shading(Ray &ray, HitInfo &hitInfo, const Scene &scene, const B
         for (int i = 1; i <= 200; i++)
         {
             glm::vec3 randomPointOnSphere = spherical.position + spherical.radius * randomUnitVector();
-            Ray newRay = {pointOn + (float)(0.001) * (glm::normalize(randomPointOnSphere - pointOn)), glm::normalize(randomPointOnSphere - pointOn), length(newRay.origin - randomPointOnSphere) };
+            Ray newRay = {pointOn + (float)(0.001) * (glm::normalize(randomPointOnSphere - pointOn)), glm::normalize(randomPointOnSphere - pointOn), length(newRay.origin - randomPointOnSphere)};
             HitInfo newHitInfo;
             float lightT = length(newRay.origin - randomPointOnSphere);
             if (!(bvh.intersect(newRay, newHitInfo)))
             {
                 softShadowCounter += 1.0f;
                 drawRay(newRay, glm::vec3(1));
-                
             }
             else
             {
-                if (newRay.t > lightT) {
+                if (newRay.t > lightT)
+                {
                     softShadowCounter += 1.0f;
                     drawRay(newRay, glm::vec3(1));
                 }
-                else {
+                else
+                {
                     drawRay(newRay, glm::vec3(1, 0, 0));
-                    
                 }
-
             }
         }
         softShadowCounter = softShadowCounter / 200.0f;
@@ -326,7 +325,7 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
 {
     std::vector<glm::vec3> matrixColorsScreen(windowResolution.x * windowResolution.y + 1);
     std::vector<glm::vec3> matrixPixels(windowResolution.x * windowResolution.y + 1);
-    
+
 #ifdef USE_OPENMP
 #pragma omp parallel for
 #endif
@@ -369,27 +368,23 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                             continue;
                         if (x + j < 0 || x + j > windowResolution.x - 1)
                             continue;
-                        else {
+                        else
+                        {
                             matrixColorsScreen.at((y * windowResolution.x) + x) += matrixColorsScreen.at(((y + i) * windowResolution.x) + (x + j));
                             counter++;
                         }
-
                     }
                 }
-                
             }
             matrixColorsScreen.at((y * windowResolution.x) + x) = glm::vec3(matrixColorsScreen.at((y * windowResolution.x) + x).x / counter, matrixColorsScreen.at((y * windowResolution.x) + x).y / counter, matrixColorsScreen.at((y * windowResolution.x) + x).z / counter);
 
-           
-
             const glm::vec2 normalizedPixelPos{
                 float(x) / windowResolution.x * 2.0f - 1.0f,
-                float(y) / windowResolution.y * 2.0f - 1.0f };
+                float(y) / windowResolution.y * 2.0f - 1.0f};
             const Ray cameraRay = camera.generateRay(normalizedPixelPos);
             glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
-            if(bloom == true)
+            if (bloom == true)
                 screen.setPixel(x, y, matrixColorsScreen.at((y * windowResolution.x) + x) + color);
-
         }
     }
 
@@ -405,13 +400,11 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
                 matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-
-
             }
         }
 
@@ -423,12 +416,11 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
                 matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-
             }
         }
 
@@ -440,12 +432,11 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
                 matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-
             }
         }
 
@@ -457,12 +448,11 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
                 matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-
             }
         }
 
@@ -474,12 +464,11 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
                 matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-
             }
         }
 
@@ -491,12 +480,11 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
                 matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-
             }
         }
 
@@ -508,12 +496,11 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
                 matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-
             }
         }
 
@@ -525,12 +512,11 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
                 matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-
             }
         }
 
@@ -542,12 +528,11 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
                 matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-
             }
         }
 
@@ -559,12 +544,11 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
                 matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-
             }
         }
 
@@ -576,12 +560,11 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
                 matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-
             }
         }
 
@@ -593,12 +576,11 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
                 matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-
             }
         }
 
@@ -610,12 +592,11 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
                 matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-
             }
         }
 
@@ -627,12 +608,11 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
                 matrixPixels.at(y * windowResolution.x + x) += getFinalColor(scene, bvh, cameraRay);
-
             }
         }
 
@@ -644,7 +624,7 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
                 // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
                 const glm::vec2 normalizedPixelPos{
                     float(x) / windowResolution.x * 2.0f - 1.0f,
-                    float(y) / windowResolution.y * 2.0f - 1.0f };
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
                 const Ray cameraRay = cameraNew.generateRay(normalizedPixelPos);
                 glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
 
@@ -810,8 +790,8 @@ int main(int argc, char **argv)
             }
             selectedLight = 0;
         }
-        
-        if (ImGui::Checkbox("Add bloom", &bloom)) 
+
+        if (ImGui::Checkbox("Add bloom", &bloom))
         {
             bloom = true;
         }

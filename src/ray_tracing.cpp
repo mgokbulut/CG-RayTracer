@@ -207,7 +207,7 @@ bool intersectRayWithShape(const Mesh &mesh, Ray &ray, HitInfo &hitInfo)
         const auto v0 = mesh.vertices[tri[0]];
         const auto v1 = mesh.vertices[tri[1]];
         const auto v2 = mesh.vertices[tri[2]];
-        hit |= intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo,v0.n,v1.n,v2.n);
+        hit |= intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo, v0.n, v1.n, v2.n);
     }
     return hit;
 }
