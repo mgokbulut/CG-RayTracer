@@ -62,6 +62,11 @@ void Trackball::setCamera(const glm::vec3 lookAt, const glm::vec3 rotations, con
     m_distanceFromLookAt = dist;
 }
 
+void Trackball::setLookAt(const glm::vec3 lookAt)
+{
+    m_lookAt = lookAt;
+}
+
 glm::vec3 Trackball::position() const
 {
     return m_lookAt + glm::quat(m_rotationEulerAngles) * glm::vec3(0, 0, -m_distanceFromLookAt);
