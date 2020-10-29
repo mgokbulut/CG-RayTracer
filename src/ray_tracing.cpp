@@ -10,6 +10,16 @@ DISABLE_WARNINGS_POP()
 #include <iostream>
 #include <limits>
 
+float magnitude(glm::vec3 a)
+{
+    return sqrt(pow(a.x, 2) + pow(a.y, 2) + pow(a.z, 2));
+}
+float area(glm::vec3 v0, glm::vec3 v1, glm::vec3 v2)
+{
+    float area = magnitude(cross(v1 - v0, v2 - v0)) / 2.0f;
+    return area;
+}
+
 bool pointInTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, const glm::vec3 &n, const glm::vec3 &p)
 {
     glm::vec3 v0v1 = v1 - v0;
@@ -73,7 +83,7 @@ Plane trianglePlane(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v
 
 /// Input: the three vertices of the triangle
 /// Output: if intersects then modify the hit parameter ray.t and return true, otherwise return false
-bool intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, Ray &ray, HitInfo &hitInfo)
+bool intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const glm::vec3 &v2, Ray &ray, HitInfo &hitInfo, const glm::vec3 &n1, const glm::vec3 &n2, const glm::vec3 &n3)
 {
     Plane plane = trianglePlane(v0, v1, v2);
     float prevT = ray.t;
@@ -81,14 +91,18 @@ bool intersectRayWithTriangle(const glm::vec3 &v0, const glm::vec3 &v1, const gl
     {
         if (pointInTriangle(v0, v1, v2, plane.normal, ray.origin + ray.direction * ray.t))
         {
+            float alpha = area(ray.origin + ray.direction * ray.t, v1, v2) / area(v0, v1, v2);
+            float beta = area(ray.origin + ray.direction * ray.t, v0, v2) / area(v0, v1, v2);
+            float gamma = area(ray.origin + ray.direction * ray.t, v0, v1) / area(v0, v1, v2);
+            glm::vec3 normalInterpolated = glm::normalize(alpha * n1 + beta * n2 + gamma * n3);
             // update the hitinfo for further calculations
             if (glm::dot(plane.normal, -ray.direction) > 0)
             {
-                hitInfo.normal = plane.normal;
+                hitInfo.normal = normalInterpolated;
             }
             else
             {
-                hitInfo.normal = -plane.normal;
+                hitInfo.normal = -normalInterpolated;
             }
             return true;
         }
@@ -193,7 +207,7 @@ bool intersectRayWithShape(const Mesh &mesh, Ray &ray, HitInfo &hitInfo)
         const auto v0 = mesh.vertices[tri[0]];
         const auto v1 = mesh.vertices[tri[1]];
         const auto v2 = mesh.vertices[tri[2]];
-        hit |= intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo);
+        hit |= intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo,v0.n,v1.n,v2.n);
     }
     return hit;
 }
