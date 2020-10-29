@@ -17,6 +17,7 @@ class BoundingVolumeHierarchy
 
 private:
     Scene *m_pScene;
+    int maxDepth;
 
     std::vector<Node> nodes;
     //Node root;
