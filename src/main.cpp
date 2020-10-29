@@ -839,14 +839,9 @@ int main(int argc, char **argv)
             selectedLight = 0;
         }
 
-        if (ImGui::Checkbox("Add bloom", &bloom))
-        {
-            bloom = true;
-        }
-        if (ImGui::Checkbox("Add motion blur", &blur))
-        {
-            blur = true;
-        }
+        ImGui::Checkbox("Add bloom", &bloom);
+        
+        ImGui::Checkbox("Add motion blur", &blur);
 
         // Clear screen.
         glClearDepth(1.0f);
