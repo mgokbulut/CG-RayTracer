@@ -531,9 +531,9 @@ bool intersectLeaf(Ray &ray, HitInfo &hitInfo, const Node &current)
     {
         for (const auto &tri : mesh.triangles)
         {
-            const auto v0 = mesh.vertices[tri[0]];
-            const auto v1 = mesh.vertices[tri[1]];
-            const auto v2 = mesh.vertices[tri[2]];
+            const auto& v0 = mesh.vertices[tri[0]];
+            const auto& v1 = mesh.vertices[tri[1]];
+            const auto& v2 = mesh.vertices[tri[2]];
             if (intersectRayWithTriangle(v0.p, v1.p, v2.p, ray, hitInfo, v0.n, v1.n, v2.n))
             {
                 hitInfo.material = mesh.material;
@@ -559,6 +559,31 @@ bool boxesOverlap(const AxisAlignedBox &box1, const AxisAlignedBox &box2)
     bool con6 = (box1.lower.z < box2.upper.z);
 
     return (con1 || con2) && (con3 || con4) && (con5 || con6);
+}
+
+bool intersectChildrenHierarchically(Ray& ray, HitInfo& hitInfo, const Node& firstIntersectedChild,
+    const Node& secondIntersectedChild, float &tFirst, float &tSecond, const std::vector<Node>& nodes) {
+    bool hitFirst = intersectRecursive(ray, hitInfo, firstIntersectedChild, nodes);
+
+    if (tSecond < 0) { // we didn't intersect the second box at all - we can only intersect triangles in the first box
+        return hitFirst;
+    }
+
+    // the second box was intersected
+    if (hitFirst) { // we intersected a triangle in the first box that was intersected
+        if (ray.t < tSecond)
+        { // the ray hit a triangle before even touching the second box that was intersected
+            return true;
+        }
+        else // the ray hit a triangle after touching the right box - we must also check the right box
+        {
+            return hitFirst | intersectRecursive(ray, hitInfo, secondIntersectedChild, nodes); // NOT a conditional or!!!
+        }
+    }
+    else
+    { // we can only intersect something in the second box that was intersected
+        return intersectRecursive(ray, hitInfo, secondIntersectedChild, nodes);
+    }
 }
 
 /**
@@ -592,44 +617,11 @@ bool intersectRayThatStartsOutsideBoxes(Ray &ray, HitInfo &hitInfo,
     }
     else
     { // both boxes were intersected
-        // the boxes are overlapping
-        if (boxesOverlap(leftChild.AABB, rightChild.AABB))
-        {
-            if (tLeft < tRight)
-            {
-                bool hit = intersectRecursive(ray, hitInfo, leftChild, nodes);
-                if (ray.t < tRight)
-                {
-                    return true;
-                }
-                return hit | intersectRecursive(ray, hitInfo, rightChild, nodes);
-            }
-            else
-            {
-                bool hit = intersectRecursive(ray, hitInfo, rightChild, nodes);
-                if (ray.t < tLeft)
-                {
-                    return true;
-                }
-                return hit | intersectRecursive(ray, hitInfo, leftChild, nodes);
-            }
+        if (tLeft < tRight) {
+            intersectChildrenHierarchically(ray, hitInfo, leftChild, rightChild, tLeft, tRight, nodes);
         }
-
-        if (tLeft < tRight)
-        { // the left child was intersected first
-            if (intersectRecursive(ray, hitInfo, leftChild, nodes))
-            {
-                return true;
-            }
-            return intersectRecursive(ray, hitInfo, rightChild, nodes);
-        }
-        else
-        { // the right child was intersected first
-            if (intersectRecursive(ray, hitInfo, rightChild, nodes))
-            {
-                return true;
-            }
-            return intersectRecursive(ray, hitInfo, leftChild, nodes);
+        else {
+            intersectChildrenHierarchically(ray, hitInfo, rightChild, leftChild, tRight, tLeft, nodes);
         }
     }
 }
@@ -684,61 +676,15 @@ bool intersectDeeper(Ray &ray, HitInfo &hitInfo,
 
     if (rayInLeftBox && rayInRightBox)
     { // the ray is inside both boxes (they overlap)
-        return intersectRecursive(ray, hitInfo, leftChild, nodes) || intersectRecursive(ray, hitInfo, rightChild, nodes);
+        return intersectRecursive(ray, hitInfo, leftChild, nodes) | intersectRecursive(ray, hitInfo, rightChild, nodes);
     }
     else if (rayInLeftBox)
     { // the ray is only inside the left box
-        bool hitLeft = intersectRecursive(ray, hitInfo, leftChild, nodes);
-
-        if (tRight < 0)
-        {
-            return hitLeft;
-        }
-        else
-        { // we know we hit the right box
-            if (hitLeft)
-            { // we intersected a triangle in the left box
-                if (ray.t < tRight)
-                { // the ray hit a triangle before even touching the right box
-                    return true;
-                }
-                else
-                {                                                                         // the ray hit a triangle after touching the right box - we must also check the right box
-                    return hitLeft | intersectRecursive(ray, hitInfo, rightChild, nodes); // NOT a conditional or!!!
-                }
-            }
-            else
-            { // we can only intersect something in the right child
-                return intersectRecursive(ray, hitInfo, rightChild, nodes);
-            }
-        }
+        return intersectChildrenHierarchically(ray, hitInfo, leftChild, rightChild, tLeft, tRight, nodes);
     }
     else if (rayInRightBox)
     { // the ray is only inside the right box
-        bool hitRight = intersectRecursive(ray, hitInfo, rightChild, nodes);
-
-        if (tLeft < 0)
-        {
-            return hitRight;
-        }
-        else
-        { // we know we hit the left box
-            if (hitRight)
-            { // we intersected a triangle in the right box
-                if (ray.t < tLeft)
-                { // the ray hit a triangle before even touching the left box
-                    return true;
-                }
-                else
-                {                                                                         // the ray hit a triangle after touching the left box - we must also check the left box
-                    return hitRight | intersectRecursive(ray, hitInfo, leftChild, nodes); // NOT a conditional or!!!
-                }
-            }
-            else
-            { // we can only intersect something in the left child
-                return intersectRecursive(ray, hitInfo, leftChild, nodes);
-            }
-        }
+        return intersectChildrenHierarchically(ray, hitInfo, rightChild, leftChild, tRight, tLeft, nodes);
     }
     else
     {
