@@ -20,8 +20,8 @@ private:
 
     std::vector<Node> nodes;
     //Node root;
-    void getSubNodes(Node &node);
-    void createTree(Node &node);
+    void getSubNodes(Node &node, Node &leftNode, Node &rightNode);
+    void createTree(Node root);
 
     Node getLeftChild(Node &node);
     Node getRightChild(Node &node);

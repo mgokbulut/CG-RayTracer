@@ -7,14 +7,16 @@ void sortTrianglesByCentres(std::vector<Triangle> &triangles, Mesh &onlyMesh, in
 AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes);
 bool intersectRecursive(Ray& ray, HitInfo& hitInfo, const Node& current, const std::vector<Node>& nodes);
 
-//void printTree(Node &root) {
+//void printTree(std::vector<Node> &nodes) {
 //    std::queue<Node> q;
+//    Node& root = nodes[0];
 //    q.push(root);
 //    int level = 0;
 //    while (!q.empty()) {
 //        Node &current = q.front();
 //        if (!current.isLeaf) {
-//            for (Node &child : current.subTree) {
+//            for (int &childIndex : current.indices) {
+//                Node& child = nodes[childIndex];
 //                q.push(child);
 //            }
 //        }
@@ -61,14 +63,13 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
         {},
         meshes,
     };
-    nodes.push_back(root);
     createTree(root);
     std::cout << "\n\n";
     std::cout << nodes.size() << std::endl;
     for (Node node : nodes) {
         std::cout << node.indices.size() << std::endl;
     }
-    //printTree(root);
+    //printTree(nodes);
 }
 
 /**
@@ -266,7 +267,7 @@ AxisAlignedBox getBoundingBoxFromMeshes(std::vector<Mesh> &meshes)
  * @param &node Node reference to the node from which we are getting
  * AND to which we are adding the children
  */
-void BoundingVolumeHierarchy::getSubNodes(Node &node)
+void BoundingVolumeHierarchy::getSubNodes(Node &node, Node &leftNode, Node &rightNode)
 {
     // determine the longest axis by which we will be splitting
     // by taking the bounding box from the parent node
@@ -305,18 +306,13 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node)
 
     AABB_left = getBoundingBoxFromMeshes(leftChild);
     AABB_right = getBoundingBoxFromMeshes(rightChild);
-    Node leftNode, rightNode;
 
     bool areLeaf = (node.level + 1 == numLevels() - 1);
     bool leftIsLeaf = areLeaf || (leftChild.size() == 1 && leftChild[0].triangles.size() == 1);
     bool rightIsLeaf = areLeaf || (rightChild.size() == 1 && rightChild[0].triangles.size() == 1);
 
-    int nodesLength = nodes.size();
-    node.indices.push_back(nodesLength);
-    node.indices.push_back(nodesLength + 1);
-    // note: after a push_back, the node reference is lost(!)
-    nodes.push_back(Node{leftIsLeaf, node.level + 1, AABB_left, {}, leftChild});
-    nodes.push_back(Node{ rightIsLeaf, node.level + 1, AABB_right, {}, rightChild});
+    leftNode = Node{leftIsLeaf, node.level + 1, AABB_left, {}, leftChild};
+    rightNode = Node{rightIsLeaf, node.level + 1, AABB_right, {}, rightChild};
     
     //std::vector<Node> children;
     //children.push_back(Node{leftIsLeaf, node.level + 1, AABB_left, {}, leftChild});
@@ -334,25 +330,51 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node)
  * 
  * @param &node Node reference to a node from an incomplete tree
  */
-void BoundingVolumeHierarchy::createTree(Node &node)
+void BoundingVolumeHierarchy::createTree(Node root)
 {
-    // ending condition is when the node is leaf.
-    if (node.isLeaf)
-    {
-        //setTriangleIndices(node);
-        return;
-    }
-    else
-    {
-        getSubNodes(node);
+    Node currentNode = root;
+    nodes.push_back(root);
+    int currentIndex = 0;
 
-        // make the recursive call
-        for (int &childIndex : node.indices)
-        {
-            Node& child = nodes[childIndex]; // MUST BE A REFERENCE
-            createTree(child);
+    // stop once we reach the end of the std::vector and the node is a leaf
+    while (!((nodes.size() == currentIndex + 1) && currentNode.isLeaf)) {
+        if (!currentNode.isLeaf) {
+            Node leftNode;
+            Node rightNode;
+            getSubNodes(currentNode, leftNode, rightNode);
+
+            int lastIndex = nodes.size();
+            nodes[currentIndex].indices.push_back(lastIndex);
+            lastIndex++;
+            nodes[currentIndex].indices.push_back(lastIndex);
+
+            nodes.push_back(leftNode);
+            nodes.push_back(rightNode);
+
+            std::cout << "current level: " << currentNode.level
+                << ", left child's level: " << nodes[nodes[currentIndex].indices[0]].level
+                << ", right child's level: " << nodes[nodes[currentIndex].indices[1]].level << std::endl;
         }
+        currentIndex++;
+        currentNode = nodes[currentIndex];
     }
+    
+
+    //// ending condition is when the node is leaf.
+    //if (node.isLeaf)
+    //{
+    //    //setTriangleIndices(node);
+    //    return;
+    //}
+    //else
+    //{
+    //    Node leftNode, rightNode;
+    //    getSubNodes(nodes, currentIndex, leftNode, rightNode);
+
+    //    // make the recursive call
+    //    createTree(leftNode);
+    //    createTree(rightNode);
+    //}
 }
 
 Node BoundingVolumeHierarchy::getLeftChild(Node& node)
@@ -848,7 +870,7 @@ bool BoundingVolumeHierarchy::intersect(Ray &ray, HitInfo &hitInfo) const
     //}
     // Intersect with spheres.
     if (!m_pScene->meshes.empty()) {
-        std::cout << "Intersecting, node size: " << nodes.size() << std::endl;
+        //std::cout << "Intersecting, nodes size: " << nodes.size() << std::endl;
         const Node& root = nodes[0];
         hit = intersectDataStructure(ray, hitInfo, root, nodes);
     }
