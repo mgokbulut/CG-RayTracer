@@ -30,9 +30,9 @@ constexpr glm::ivec2 windowResolution{800, 800};
 const std::filesystem::path dataPath{DATA_DIR};
 const std::filesystem::path outputPath{OUTPUT_DIR};
 
-bool bloom = true;
+bool bloom = false;
 bool blur = false;
-bool antiAliasing = true;
+bool antiAliasing = false;
 
 enum class ViewMode
 {
