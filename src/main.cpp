@@ -32,6 +32,8 @@ const std::filesystem::path outputPath{OUTPUT_DIR};
 
 bool bloom = false;
 bool blur = false;
+bool antiAliasing = false;
+
 enum class ViewMode
 {
     Rasterization = 0,
@@ -648,29 +650,63 @@ static void renderRayTracing(const Scene &scene, const Trackball &camera, const 
     {
         for (int x = 0; x != windowResolution.x; x++)
         {
-            // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
-            const glm::vec2 normalizedPixelPos{
-                float(x) / windowResolution.x * 2.0f - 1.0f,
-                float(y) / windowResolution.y * 2.0f - 1.0f};
-            const Ray cameraRay = camera.generateRay(normalizedPixelPos);
-            glm::vec3 color = getFinalColor(scene, bvh, cameraRay);
-            screen.setPixel(x, y, color);
-            matrixPixels.at(y * windowResolution.x + x) = getFinalColor(scene, bvh, cameraRay);
+            glm::vec3 color;
+            Ray cameraRay;
 
-            if (color.x + color.y + color.z > 1)
-                matrixColorsScreen.at(y * windowResolution.x + x) = getFinalColor(scene, bvh, cameraRay);
+            if (antiAliasing)
+            {
+                float level = 2.0f;
+                for (int y_continued = y * level; y_continued < 2 + (level * y); y_continued++)
+                {
+                    for (int x_continued = x * level; x_continued < 2 + (level * x); x_continued++)
+                    {
+                        const glm::vec2 normalizedPixelPos{
+                            float(x_continued) / windowResolution.x * (2.0f / level) - 1.0f,
+                            float(y_continued) / windowResolution.y * (2.0f / level) - 1.0f};
+                        const Ray cameraRay = camera.generateRay(normalizedPixelPos);
+                        color = color + getFinalColor(scene, bvh, cameraRay);
+                        if (bloom)
+                        {
+                            matrixPixels.at(y * windowResolution.x + x) = getFinalColor(scene, bvh, cameraRay);
+                            if (color.x + color.y + color.z > 1)
+                                matrixColorsScreen.at(y * windowResolution.x + x) = getFinalColor(scene, bvh, cameraRay);
+                            else
+                                matrixColorsScreen.at(y * windowResolution.x + x) = glm::vec3((0));
+                        }
+                    }
+                }
+                color = color / (level * 2.5f);
+                screen.setPixel(x, y, color);
+            }
             else
-                matrixColorsScreen.at(y * windowResolution.x + x) = glm::vec3((0));
+            {
+                // NOTE: (-1, -1) at the bottom left of the screen, (+1, +1) at the top right of the screen.
+                const glm::vec2 normalizedPixelPos{
+                    float(x) / windowResolution.x * 2.0f - 1.0f,
+                    float(y) / windowResolution.y * 2.0f - 1.0f};
+                cameraRay = camera.generateRay(normalizedPixelPos);
+                color = getFinalColor(scene, bvh, cameraRay);
+                screen.setPixel(x, y, color);
+
+                if (bloom)
+                {
+                    matrixPixels.at(y * windowResolution.x + x) = getFinalColor(scene, bvh, cameraRay);
+                    if (color.x + color.y + color.z > 1)
+                        matrixColorsScreen.at(y * windowResolution.x + x) = getFinalColor(scene, bvh, cameraRay);
+                    else
+                        matrixColorsScreen.at(y * windowResolution.x + x) = glm::vec3((0));
+                }
+            }
         }
     }
     //mean over pixels 20x20
     //https://developer.nvidia.com/gpugems/gpugems/part-iv-image-processing/chapter-21-real-time-glow
 
-    if (bloom == true)
+    if (bloom)
     {
         bloomEffect(matrixPixels, matrixColorsScreen, screen, scene, camera, bvh);
     }
-    if (blur == true)
+    if (blur)
     {
         blurEffect(scene, camera, bvh, screen, matrixPixels);
     }
@@ -832,6 +868,10 @@ int main(int argc, char **argv)
             selectedLight = 0;
         }
 
+        if (ImGui::Checkbox("Add Anti Aliasing", &antiAliasing))
+        {
+            antiAliasing = true;
+        }
         if (ImGui::Checkbox("Add bloom", &bloom))
         {
             bloom = true;
