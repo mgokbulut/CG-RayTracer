@@ -45,6 +45,7 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
     //--- TODO ---//
     // implement the division criteria with SAH+binning (in case)
     //
+    maxDepth = 12;
 
     std::vector<Mesh> meshes = pScene->meshes;
 
@@ -55,7 +56,7 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
 
     AxisAlignedBox rootAABB = getBoundingBoxFromMeshes(meshes);
 
-    bool isLeaf = numLevels() - 1 == 0 || (meshes.size() == 1 && meshes[0].triangles.size() == 1);
+    bool isLeaf = maxDepth - 1 == 0 || (meshes.size() == 1 && meshes[0].triangles.size() == 1);
 
     Node root = Node{
         isLeaf,
@@ -65,12 +66,12 @@ BoundingVolumeHierarchy::BoundingVolumeHierarchy(Scene *pScene)
         meshes,
     };
     createTree(root);
-    std::cout << "\n\n";
-    std::cout << nodes.size() << std::endl;
-    for (Node node : nodes)
-    {
-        std::cout << node.indices.size() << std::endl;
-    }
+    //std::cout << "\n\n";
+    //std::cout << nodes.size() << std::endl;
+    //for (Node node : nodes)
+    //{
+    //    std::cout << node.indices.size() << std::endl;
+    //}
     //printTree(nodes);
 }
 
@@ -206,13 +207,20 @@ void getChildMeshesOneMesh(std::vector<Mesh> &leftChild, std::vector<Mesh> &righ
 }
 
 /**
- * Give the maximum number of levels of the bvh tree.
+ * Give the number of levels of the bvh tree.
  * 
  * @return int number of levels
  */
 int BoundingVolumeHierarchy::numLevels() const
 {
-    return 10;
+    int maxLevel = 0;
+    for (const Node &n : nodes) {
+        if (n.level > maxLevel) {
+            maxLevel = n.level;
+        }
+    }
+
+    return maxLevel + 1; // even with only one node at level 0 there is 1 level
 }
 
 /**
@@ -309,7 +317,7 @@ void BoundingVolumeHierarchy::getSubNodes(Node &node, Node &leftNode, Node &righ
     AABB_left = getBoundingBoxFromMeshes(leftChild);
     AABB_right = getBoundingBoxFromMeshes(rightChild);
 
-    bool areLeaf = (node.level + 1 == numLevels() - 1);
+    bool areLeaf = (node.level + 1 == maxDepth - 1);
     bool leftIsLeaf = areLeaf || (leftChild.size() == 1 && leftChild[0].triangles.size() == 1);
     bool rightIsLeaf = areLeaf || (rightChild.size() == 1 && rightChild[0].triangles.size() == 1);
 
@@ -355,9 +363,9 @@ void BoundingVolumeHierarchy::createTree(Node root)
             nodes.push_back(leftNode);
             nodes.push_back(rightNode);
 
-            std::cout << "current level: " << currentNode.level
-                      << ", left child's level: " << nodes[nodes[currentIndex].indices[0]].level
-                      << ", right child's level: " << nodes[nodes[currentIndex].indices[1]].level << std::endl;
+            //std::cout << "current level: " << currentNode.level
+            //          << ", left child's level: " << nodes[nodes[currentIndex].indices[0]].level
+            //          << ", right child's level: " << nodes[nodes[currentIndex].indices[1]].level << std::endl;
         }
         currentIndex++;
         currentNode = nodes[currentIndex];
